@@ -236,6 +236,12 @@ code {
   text-shadow: none;
 }
 
+:root.theme-dark code {
+  color: #ffffff;
+  background-color: rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
 pre {
   border-radius: 8px !important;
   margin: 1.2em 0 !important;
