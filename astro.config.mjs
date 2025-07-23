@@ -8,10 +8,16 @@ import rehypeExternalLinks from 'rehype-external-links'
 // https://astro.build/config
 export default defineConfig({
   site: 'https://worldsvieew.com',
+  base: '/',
   output: 'static',
   vite: {
     ssr: {
       noExternal: ['svelte']
+    },
+    build: {
+      rollupOptions: {
+        external: ['svelte']
+      }
     }
   },
   markdown: {
