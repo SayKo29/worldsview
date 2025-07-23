@@ -11,30 +11,25 @@ export interface Props {
 }
 const { title, description, permalink, current } = Astro.props;
 ---
-<html lang="en">
-<head>
-  <BaseHead title={title} description={description} permalink={permalink} />
-</head>
-<body>
-  <div class="layout">
-    <Header current={current} />
 
+<html lang="es">
+  <head>
+    <BaseHead title={title} description={description} permalink={permalink} />
+  </head>
+
+  <body>
+    <Header current={current} />
     <main>
-      <!-- Add the audio element here -->
-      <!-- <audio autoplay loop>
-        <source src="/assets/ruleworld.mp3" type="audio/mp3">
-        Your browser does not support the audio element.
-      </audio> -->
-      <!-- <video class="tocadiscos" autoplay loop muted playsinline>
-        <source src="/assets/tocadiscos.mp4" type="video/mp4" />
-        Your browser does not support the video tag.
-      </video> -->
       <slot />
     </main>
-
     <Footer />
-  </div>
-</body>
+    <audio id="audio-player" loop>
+      <source src="/worldsview/assets/ruleworld.mp3" type="audio/mp3">
+    </audio>
+    <video id="video-player" loop muted>
+      <source src="/worldsview/assets/tocadiscos.mp4" type="video/mp4" />
+    </video>
+  </body>
 </html>
 
 <style>
