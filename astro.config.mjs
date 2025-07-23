@@ -7,9 +7,15 @@ import rehypeExternalLinks from 'rehype-external-links'
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://worldsvieew.com',
-  outDir: './dist',
+  site: 'https://worldsview.es',
   integrations: [mdx(), svelte()],
+  vite: {
+    build: {
+      rollupOptions: {
+        external: ['svelte']
+      }
+    }
+  },
   markdown: {
     shikiConfig: {
       theme: 'nord',
