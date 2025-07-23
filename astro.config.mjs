@@ -7,12 +7,15 @@ import rehypeExternalLinks from 'rehype-external-links'
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://worldsview.es',
+  site: 'https://worldsvieew.com',
   integrations: [mdx(), svelte()],
   vite: {
+    ssr: {
+      noExternal: ['svelte']
+    },
     build: {
       rollupOptions: {
-        external: ['svelte']
+        external: ['@sveltejs/vite-plugin-svelte']
       }
     }
   },
