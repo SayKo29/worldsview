@@ -9,42 +9,42 @@ const permalink = `${Astro.site.href}fotos`;
 const fotos = [
   {
     id: 1,
-    src: '/assets/blog/casual-life-3d-meditation-crystal.webp',
+    src: '/worldsview/assets/blog/casual-life-3d-meditation-crystal.webp',
     alt: 'Meditación y cristales',
     title: 'Momentos de paz',
     description: 'Encontrando tranquilidad en la meditación'
   },
   {
     id: 2,
-    src: '/assets/blog/casual-life-3d-workspace.webp',
+    src: '/worldsview/assets/blog/casual-life-3d-workspace.webp',
     alt: 'Espacio de trabajo creativo',
     title: 'Mi santuario creativo',
     description: 'Donde las ideas cobran vida'
   },
   {
     id: 3,
-    src: '/assets/blog/casual-life-3d-girl-boy-poses.webp',
+    src: '/worldsview/assets/blog/casual-life-3d-girl-boy-poses.webp',
     alt: 'Amistades y conexiones',
     title: 'Conexiones humanas',
     description: 'Los momentos que importan'
   },
   {
     id: 4,
-    src: '/assets/blog/casual-life-3d-likes.webp',
+    src: '/worldsview/assets/blog/casual-life-3d-likes.webp',
     alt: 'Interacciones sociales',
     title: 'Interacciones digitales',
     description: 'El mundo conectado'
   },
   {
     id: 5,
-    src: '/assets/about-illustration.webp',
+    src: '/worldsview/assets/about-illustration.webp',
     alt: 'Ilustración de cuaderno',
     title: 'Reflexiones',
     description: 'Pensamientos en papel'
   },
   {
     id: 6,
-    src: '/assets/home-illustration.webp',
+    src: '/worldsview/assets/home-illustration.webp',
     alt: 'Persona leyendo',
     title: 'Momentos de lectura',
     description: 'Aprendiendo y creciendo'
@@ -326,42 +326,42 @@ const fotos = [
   const fotos = [
     {
       id: 1,
-      src: '/assets/blog/casual-life-3d-meditation-crystal.webp',
+      src: '/worldsview/assets/blog/casual-life-3d-meditation-crystal.webp',
       alt: 'Meditación y cristales',
       title: 'Momentos de paz',
       description: 'Encontrando tranquilidad en la meditación'
     },
     {
       id: 2,
-      src: '/assets/blog/casual-life-3d-workspace.webp',
+      src: '/worldsview/assets/blog/casual-life-3d-workspace.webp',
       alt: 'Espacio de trabajo creativo',
       title: 'Mi santuario creativo',
       description: 'Donde las ideas cobran vida'
     },
     {
       id: 3,
-      src: '/assets/blog/casual-life-3d-girl-boy-poses.webp',
+      src: '/worldsview/assets/blog/casual-life-3d-girl-boy-poses.webp',
       alt: 'Amistades y conexiones',
       title: 'Conexiones humanas',
       description: 'Los momentos que importan'
     },
     {
       id: 4,
-      src: '/assets/blog/casual-life-3d-likes.webp',
+      src: '/worldsview/assets/blog/casual-life-3d-likes.webp',
       alt: 'Interacciones sociales',
       title: 'Interacciones digitales',
       description: 'El mundo conectado'
     },
     {
       id: 5,
-      src: '/assets/about-illustration.webp',
+      src: '/worldsview/assets/about-illustration.webp',
       alt: 'Ilustración de cuaderno',
       title: 'Reflexiones',
       description: 'Pensamientos en papel'
     },
     {
       id: 6,
-      src: '/assets/home-illustration.webp',
+      src: '/worldsview/assets/home-illustration.webp',
       alt: 'Persona leyendo',
       title: 'Momentos de lectura',
       description: 'Aprendiendo y creciendo'
@@ -439,10 +439,12 @@ const fotos = [
 
   function updateModal() {
     const foto = fotos[currentFotoIndex];
-    modalImage.src = foto.src;
-    modalImage.alt = foto.alt;
-    modalTitle.textContent = foto.title;
-    modalDescription.textContent = foto.description;
-    modalCounter.textContent = `${currentFotoIndex + 1} / ${fotos.length}`;
+    if (modalImage) {
+      modalImage.setAttribute('src', foto.src);
+      modalImage.setAttribute('alt', foto.alt);
+    }
+    if (modalTitle) modalTitle.textContent = foto.title;
+    if (modalDescription) modalDescription.textContent = foto.description;
+    if (modalCounter) modalCounter.textContent = `${currentFotoIndex + 1} / ${fotos.length}`;
   }
 </script> 
