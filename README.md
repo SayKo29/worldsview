@@ -1,64 +1,38 @@
-# [Astro](https://astro.build) Blog Template
+# World's View Blog
 
-[![Screenshot](screenshot.png)](https://astro-blog-template.netlify.app/)
+Este es un blog personal mantenido por **Andrea Solsona**, donde comparte sus perspectivas, experiencias y reflexiones sobre el mundo que nos rodea.
 
-## 👉 Check out the ✨ [Live Demo](https://astro-blog-template.netlify.app/) ✨
+## Sobre el blog
 
-## 👩‍🚀 Getting Started
+World's View es un espacio digital donde Andrea explora temas diversos desde su particular visión del mundo. A través de sus escritos, fotografías y reflexiones, invita a los lectores a contemplar la realidad desde diferentes ángulos y a cuestionar lo establecido.
 
-### Locally
+## Tecnologías utilizadas
 
-```
-npm init astro -- --template Charca/astro-blog-template
-```
+Este blog está construido con:
 
-### On StackBlitz
+- [Astro](https://astro.build) - Framework web moderno y rápido
+- [Svelte](https://svelte.dev) - Para componentes interactivos
+- [MDX](https://mdxjs.com) - Para contenido enriquecido
 
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/charca/astro-blog-template)
+## Temas del blog
 
-## ✨ Features:
+- Reflexiones personales
+- Fotografía
+- Cultura y sociedad
+- Viajes y experiencias
+- Arte y creatividad
 
-- ✅ Astro 4.0
-- ✅ Dark Mode
-- ✅ Full Markdown support
-- ✅ SEO-friendly setup with canonical URLs and OpenGraph data
-- ✅ RSS 2.0 generation
-- ✅ Sitemap.xml generation
+## Contacto
 
-## 🚀 Project Structure
+Para contactar con Andrea o colaborar en el blog:
 
-Inside of your Astro project, you'll see the following folders and files:
+- Email: andrea@worldsview.com
+- Instagram: @andrea_worldsview
 
-```
-/
-├── public/
-│   ├── robots.txt
-│   └── favicon.ico
-├── src/
-│   ├── components/
-│   │   └── Tour.astro
-│   └── pages/
-│       └── index.astro
-└── package.json
-```
+## Despliegue
 
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
+El blog está desplegado en GitHub Pages y puede visitarse en [https://sayko29.github.io/worldsview/](https://sayko29.github.io/worldsview/)
 
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
+---
 
-Any static assets, like images, can be placed in the `public/` directory.
-
-## 🧞 Commands
-
-All commands are run from the root of the project, from a terminal:
-
-| Command           | Action                                       |
-| :---------------- | :------------------------------------------- |
-| `npm install`     | Installs dependencies                        |
-| `npm run dev`     | Starts local dev server at `localhost:3030`  |
-| `npm run build`   | Build your production site to `./dist/`      |
-| `npm run preview` | Preview your build locally, before deploying |
-
-## 👀 Want to learn more?
-
-Feel free to check [Astro's documentation](https://github.com/withastro/astro) or jump into Astro's [Discord server](https://astro.build/chat).
+&copy; 2025 Andrea Solsona - Todos los derechos reservados
