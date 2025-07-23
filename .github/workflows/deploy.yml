@@ -7,11 +7,13 @@ on:
   # Permitir ejecutar manualmente desde la pestaña Actions
   workflow_dispatch:
 
-# Permitir que este job clone el repositorio y cree un despliegue en GitHub Pages
+# Configuración de permisos para todo el flujo de trabajo
 permissions:
   contents: read
   pages: write
   id-token: write
+  actions: write
+  deployments: write
 
 jobs:
   build:
