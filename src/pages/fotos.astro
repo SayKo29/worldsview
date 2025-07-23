@@ -24,7 +24,7 @@ const permalink = `${Astro.site.href}fotos`;
       {photos.map((photo) => (
         <div class="gallery-item" data-category={photo.category} data-foto-id={photo.id}>
           <img 
-            src={`/worldsview/assets/blog-photos/${photo.filename}`}
+            src={`/assets/blog-photos/${photo.filename}`}
             alt={photo.title}
             loading="lazy"
             class="gallery-image"
@@ -464,7 +464,7 @@ const permalink = `${Astro.site.href}fotos`;
 
   function updateModal() {
     const foto = photos[currentFotoIndex];
-    modalImage.src = `/worldsview/assets/blog-photos/${foto.filename}`;
+    modalImage.src = `/assets/blog-photos/${foto.filename}`;
     modalImage.alt = foto.title;
     modalTitle.textContent = foto.title;
     modalDescription.textContent = foto.description;

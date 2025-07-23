@@ -7,8 +7,7 @@ import rehypeExternalLinks from 'rehype-external-links'
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://sayko29.github.io',
-  base: '/worldsview',
+  site: 'https://worldsvieew.com',
   outDir: './dist',
   integrations: [mdx(), svelte()],
   markdown: {

@@ -7,17 +7,8 @@
   <script>
     // Toma la ruta actual y la redirige a la raíz con un parámetro
     (function() {
-      var pathSegmentsToKeep = 1;
       var l = window.location;
-      
-      // Construye la URL base
-      var origin = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '');
-      var baseUrl = origin + '/worldsview/';
-      
-      // Redirige manteniendo la ruta después del base path
-      l.replace(
-        baseUrl + l.pathname.split('/').slice(pathSegmentsToKeep + 1).join('/')
-      );
+      l.replace(l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + l.pathname);
     })();
   </script>
 </head>

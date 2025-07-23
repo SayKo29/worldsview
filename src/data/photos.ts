@@ -4,7 +4,7 @@ export interface Photo {
   title: string;
   description: string;
   date: string;
-  category: 'naturaleza' | 'ciudad' | 'arquitectura' | 'atardecer' | 'arte' | 'viajes';
+  category: 'naturaleza' | 'animales' | 'plantas' | 'flores';
   location?: string;
 }
 
@@ -24,7 +24,7 @@ export const photos: Photo[] = [
     title: 'Geometría Urbana',
     description: 'Líneas y formas se entrelazan en la arquitectura moderna, creando patrones que cuentan historias de la ciudad.',
     date: '2025-07-14',
-    category: 'arquitectura',
+    category: 'naturaleza',
     location: 'Centro Urbano'
   },
   {
@@ -33,7 +33,7 @@ export const photos: Photo[] = [
     title: 'Calma en la Tormenta',
     description: 'Un momento de paz capturado en medio del caos urbano, donde la naturaleza y la ciudad se encuentran.',
     date: '2025-07-14',
-    category: 'ciudad'
+    category: 'naturaleza'
   },
   {
     id: 4,
@@ -41,7 +41,7 @@ export const photos: Photo[] = [
     title: 'Atardecer en Silencio',
     description: 'El sol se despide pintando el cielo con tonos cálidos, creando un espectáculo de colores.',
     date: '2025-05-28',
-    category: 'atardecer',
+    category: 'naturaleza',
     location: 'Mirador del Ocaso'
   },
   {
@@ -58,7 +58,7 @@ export const photos: Photo[] = [
     title: 'Ventanas al Pasado',
     description: 'La arquitectura antigua nos cuenta historias de tiempos pasados a través de sus detalles.',
     date: '2025-05-28',
-    category: 'arquitectura',
+    category: 'naturaleza',
     location: 'Casco Histórico'
   },
   {
@@ -67,7 +67,7 @@ export const photos: Photo[] = [
     title: 'Luces de la Ciudad',
     description: 'El pulso de la vida urbana capturado en un instante de luz y movimiento.',
     date: '2025-05-19',
-    category: 'ciudad'
+    category: 'naturaleza'
   },
   {
     id: 8,
@@ -75,7 +75,7 @@ export const photos: Photo[] = [
     title: 'Sombras Danzantes',
     description: 'Juego de luces y sombras que crean una danza visual en las paredes de la ciudad.',
     date: '2025-05-19',
-    category: 'arte'
+    category: 'naturaleza'
   },
   {
     id: 9,
@@ -83,7 +83,7 @@ export const photos: Photo[] = [
     title: 'Caminos del Destino',
     description: 'Senderos que se entrelazan, simbolizando las múltiples direcciones que puede tomar la vida.',
     date: '2025-05-19',
-    category: 'viajes'
+    category: 'naturaleza'
   },
   {
     id: 10,
@@ -91,7 +91,7 @@ export const photos: Photo[] = [
     title: 'Colores del Crepúsculo',
     description: 'El cielo se viste de gala con una paleta de colores que despide el día.',
     date: '2025-05-19',
-    category: 'atardecer'
+    category: 'naturaleza'
   },
   {
     id: 11,
@@ -107,7 +107,7 @@ export const photos: Photo[] = [
     title: 'Perspectivas Urbanas',
     description: 'La ciudad vista desde un ángulo diferente revela nuevas historias.',
     date: '2025-03-06',
-    category: 'ciudad'
+    category: 'naturaleza'
   },
   {
     id: 13,
@@ -115,7 +115,7 @@ export const photos: Photo[] = [
     title: 'Reflejos Modernos',
     description: 'La arquitectura contemporánea juega con los reflejos creando ilusiones visuales.',
     date: '2025-03-05',
-    category: 'arquitectura'
+    category: 'naturaleza'
   },
   {
     id: 14,
@@ -131,7 +131,7 @@ export const photos: Photo[] = [
     title: 'Arte Urbano',
     description: 'Las calles se convierten en lienzos para expresiones artísticas contemporáneas.',
     date: '2025-02-16',
-    category: 'arte'
+    category: 'naturaleza'
   }
 ];
 
@@ -151,9 +151,7 @@ export const getLatestPhotos = (limit: number = 6) => {
 
 export const categories = [
   { id: 'naturaleza', name: 'Naturaleza' },
-  { id: 'ciudad', name: 'Ciudad' },
-  { id: 'arquitectura', name: 'Arquitectura' },
-  { id: 'atardecer', name: 'Atardecer' },
-  { id: 'arte', name: 'Arte' },
-  { id: 'viajes', name: 'Viajes' }
+  { id: 'animales', name: 'Animales' },
+  { id: 'plantas', name: 'Plantas' },
+  { id: 'flores', name: 'Flores' }
 ] as const; 
