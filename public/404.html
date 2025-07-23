@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Redireccionando...</title>
+  <script>
+    // Toma la ruta actual y la redirige a la raíz con un parámetro
+    (function() {
+      var segmentCount = 1;
+      var location = window.location;
+      var href = location.href;
+      var pathName = location.pathname;
+      var repo = '/worldsview';
+      
+      var redirectTo = location.origin + repo + '/?p=' + pathName.slice(1);
+      window.location.replace(redirectTo);
+    })();
+  </script>
+</head>
+<body>
+  <p>Redireccionando...</p>
+</body>
+</html> 
