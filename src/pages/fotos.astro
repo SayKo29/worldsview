@@ -1,62 +1,10 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import { photos, categories } from '../data/photos';
 
 const title = 'Galería de Fotos';
 const description = 'Una colección de momentos capturados en imágenes.';
 const permalink = `${Astro.site.href}fotos`;
-
-// Array de fotos de ejemplo - puedes reemplazar con tus propias fotos
-const fotos = [
-  {
-    id: 1,
-    src: '/worldsview/assets/blog/casual-life-3d-meditation-crystal.webp',
-    alt: 'Meditación y cristales',
-    title: 'Momentos de paz',
-    description: 'Encontrando tranquilidad en la meditación'
-  },
-  {
-    id: 2,
-    src: '/worldsview/assets/blog/casual-life-3d-workspace.webp',
-    alt: 'Espacio de trabajo creativo',
-    title: 'Mi santuario creativo',
-    description: 'Donde las ideas cobran vida'
-  },
-  {
-    id: 3,
-    src: '/worldsview/assets/blog/casual-life-3d-girl-boy-poses.webp',
-    alt: 'Amistades y conexiones',
-    title: 'Conexiones humanas',
-    description: 'Los momentos que importan'
-  },
-  {
-    id: 4,
-    src: '/worldsview/assets/blog/casual-life-3d-likes.webp',
-    alt: 'Interacciones sociales',
-    title: 'Interacciones digitales',
-    description: 'El mundo conectado'
-  },
-  {
-    id: 5,
-    src: '/worldsview/assets/about-illustration.webp',
-    alt: 'Ilustración de cuaderno',
-    title: 'Reflexiones',
-    description: 'Pensamientos en papel'
-  },
-  {
-    id: 6,
-    src: '/worldsview/assets/home-illustration.webp',
-    alt: 'Persona leyendo',
-    title: 'Momentos de lectura',
-    description: 'Aprendiendo y creciendo'
-  },
-  {
-    id: 7,
-    src: '/worldsview/assets/logo.PNG',
-    alt: 'Logo de Worldsview',
-    title: 'Logo de Worldsview',
-    description: 'Logo de Worldsview'
-  }
-];
 ---
 
 <BaseLayout title={title} description={description} permalink={permalink} current="fotos">
@@ -64,18 +12,27 @@ const fotos = [
     <h1 class="gallery-title">Galería de Fotos</h1>
     <p class="gallery-intro">Una colección de momentos especiales capturados a través del tiempo.</p>
     
+    <div class="categories">
+      {categories.map((category) => (
+        <button class="category-btn" data-category={category.id}>
+          {category.name}
+        </button>
+      ))}
+    </div>
+
     <div class="gallery-grid">
-      {fotos.map((foto) => (
-        <div class="gallery-item" data-foto-id={foto.id}>
+      {photos.map((photo) => (
+        <div class="gallery-item" data-category={photo.category} data-foto-id={photo.id}>
           <img 
-            src={foto.src} 
-            alt={foto.alt}
+            src={`/worldsview/assets/blog-photos/${photo.filename}`}
+            alt={photo.title}
             loading="lazy"
             class="gallery-image"
           />
           <div class="gallery-overlay">
-            <h3>{foto.title}</h3>
-            <p>{foto.description}</p>
+            <h3>{photo.title}</h3>
+            <p>{photo.description}</p>
+            {photo.location && <span class="location">{photo.location}</span>}
           </div>
         </div>
       ))}
@@ -94,6 +51,10 @@ const fotos = [
         <div class="modal-info">
           <h2 id="modal-title"></h2>
           <p id="modal-description"></p>
+          <div class="modal-metadata">
+            <span id="modal-location"></span>
+            <span id="modal-date"></span>
+          </div>
           <span id="modal-counter"></span>
         </div>
       </div>
@@ -104,13 +65,38 @@ const fotos = [
 <style>
   .gallery-intro {
     text-align: center;
-    margin-bottom: 3rem;
+    margin-bottom: 2rem;
     font-size: 1.2rem;
     color: var(--text-secondary);
   }
 
   .gallery-title {
     text-align: center;
+    margin-bottom: 1rem;
+  }
+
+  .categories {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    justify-content: center;
+    margin-bottom: 2rem;
+  }
+
+  .category-btn {
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--primary-color);
+    background: transparent;
+    color: var(--text-main);
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+
+  .category-btn:hover,
+  .category-btn.active {
+    background: var(--primary-color);
+    color: var(--warm-light);
   }
 
   .gallery-grid {
@@ -175,6 +161,13 @@ const fotos = [
     margin: 0;
     font-size: 1rem;
     opacity: 0.9;
+  }
+
+  .location {
+    display: block;
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    opacity: 0.8;
   }
 
   /* Modal Styles */
@@ -272,6 +265,15 @@ const fotos = [
     opacity: 0.9;
   }
 
+  .modal-metadata {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    font-size: 0.9rem;
+    opacity: 0.7;
+    margin-bottom: 0.5rem;
+  }
+
   #modal-counter {
     font-size: 1rem;
     opacity: 0.7;
@@ -306,6 +308,15 @@ const fotos = [
     .modal-info p {
       font-size: 1rem;
     }
+
+    .categories {
+      gap: 0.5rem;
+    }
+
+    .category-btn {
+      padding: 0.4rem 0.8rem;
+      font-size: 0.9rem;
+    }
   }
 
   @media (max-width: 480px) {
@@ -325,70 +336,77 @@ const fotos = [
     .next-btn {
       right: 10px;
     }
+
+    .categories {
+      flex-direction: column;
+      align-items: stretch;
+      padding: 0 1rem;
+    }
+
+    .category-btn {
+      width: 100%;
+      text-align: center;
+    }
   }
 </style>
 
 <script>
-  // Datos de las fotos
-  const fotos = [
-    {
-      id: 1,
-      src: '/worldsview/assets/blog/casual-life-3d-meditation-crystal.webp',
-      alt: 'Meditación y cristales',
-      title: 'Momentos de paz',
-      description: 'Encontrando tranquilidad en la meditación'
-    },
-    {
-      id: 2,
-      src: '/worldsview/assets/blog/casual-life-3d-workspace.webp',
-      alt: 'Espacio de trabajo creativo',
-      title: 'Mi santuario creativo',
-      description: 'Donde las ideas cobran vida'
-    },
-    {
-      id: 3,
-      src: '/worldsview/assets/blog/casual-life-3d-girl-boy-poses.webp',
-      alt: 'Amistades y conexiones',
-      title: 'Conexiones humanas',
-      description: 'Los momentos que importan'
-    },
-    {
-      id: 4,
-      src: '/worldsview/assets/blog/casual-life-3d-likes.webp',
-      alt: 'Interacciones sociales',
-      title: 'Interacciones digitales',
-      description: 'El mundo conectado'
-    },
-    {
-      id: 5,
-      src: '/worldsview/assets/about-illustration.webp',
-      alt: 'Ilustración de cuaderno',
-      title: 'Reflexiones',
-      description: 'Pensamientos en papel'
-    },
-    {
-      id: 6,
-      src: '/worldsview/assets/home-illustration.webp',
-      alt: 'Persona leyendo',
-      title: 'Momentos de lectura',
-      description: 'Aprendiendo y creciendo'
-    }
-  ];
+  import { photos } from '../data/photos';
 
   let currentFotoIndex = 0;
+  let currentCategory: string | null = null;
 
   // Elementos del DOM
   const modal = document.getElementById('fullscreen-modal');
-  const modalImage = document.getElementById('modal-image');
+  const modalImage = document.getElementById('modal-image') as HTMLImageElement;
   const modalTitle = document.getElementById('modal-title');
   const modalDescription = document.getElementById('modal-description');
+  const modalLocation = document.getElementById('modal-location');
+  const modalDate = document.getElementById('modal-date');
   const modalCounter = document.getElementById('modal-counter');
   const closeBtn = document.querySelector('.close-modal');
   const prevBtn = document.querySelector('.prev-btn');
   const nextBtn = document.querySelector('.next-btn');
+  const categoryBtns = document.querySelectorAll('.category-btn');
+  const galleryItems = document.querySelectorAll('.gallery-item');
+
+  // Filtrado por categorías
+  categoryBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const category = btn.getAttribute('data-category');
+      
+      // Toggle active state
+      if (currentCategory === category) {
+        currentCategory = null;
+        btn.classList.remove('active');
+        showAllPhotos();
+      } else {
+        currentCategory = category;
+        categoryBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        filterPhotosByCategory(category);
+      }
+    });
+  });
+
+  function showAllPhotos() {
+    galleryItems.forEach(item => {
+      item.style.display = 'block';
+    });
+  }
+
+  function filterPhotosByCategory(category: string) {
+    galleryItems.forEach(item => {
+      if (item.getAttribute('data-category') === category) {
+        item.style.display = 'block';
+      } else {
+        item.style.display = 'none';
+      }
+    });
+  }
 
   // Abrir modal
-  document.querySelectorAll('.gallery-item').forEach((item, index) => {
+  galleryItems.forEach((item, index) => {
     item.addEventListener('click', () => {
       currentFotoIndex = index;
       openModal();
@@ -405,12 +423,12 @@ const fotos = [
 
   // Navegación
   prevBtn.addEventListener('click', () => {
-    currentFotoIndex = (currentFotoIndex - 1 + fotos.length) % fotos.length;
+    currentFotoIndex = (currentFotoIndex - 1 + photos.length) % photos.length;
     updateModal();
   });
 
   nextBtn.addEventListener('click', () => {
-    currentFotoIndex = (currentFotoIndex + 1) % fotos.length;
+    currentFotoIndex = (currentFotoIndex + 1) % photos.length;
     updateModal();
   });
 
@@ -422,11 +440,11 @@ const fotos = [
           closeModal();
           break;
         case 'ArrowLeft':
-          currentFotoIndex = (currentFotoIndex - 1 + fotos.length) % fotos.length;
+          currentFotoIndex = (currentFotoIndex - 1 + photos.length) % photos.length;
           updateModal();
           break;
         case 'ArrowRight':
-          currentFotoIndex = (currentFotoIndex + 1) % fotos.length;
+          currentFotoIndex = (currentFotoIndex + 1) % photos.length;
           updateModal();
           break;
       }
@@ -445,13 +463,13 @@ const fotos = [
   }
 
   function updateModal() {
-    const foto = fotos[currentFotoIndex];
-    if (modalImage) {
-      modalImage.setAttribute('src', foto.src);
-      modalImage.setAttribute('alt', foto.alt);
-    }
-    if (modalTitle) modalTitle.textContent = foto.title;
-    if (modalDescription) modalDescription.textContent = foto.description;
-    if (modalCounter) modalCounter.textContent = `${currentFotoIndex + 1} / ${fotos.length}`;
+    const foto = photos[currentFotoIndex];
+    modalImage.src = `/worldsview/assets/blog-photos/${foto.filename}`;
+    modalImage.alt = foto.title;
+    modalTitle.textContent = foto.title;
+    modalDescription.textContent = foto.description;
+    modalLocation.textContent = foto.location || '';
+    modalDate.textContent = new Date(foto.date).toLocaleDateString();
+    modalCounter.textContent = `${currentFotoIndex + 1} / ${photos.length}`;
   }
 </script> 
