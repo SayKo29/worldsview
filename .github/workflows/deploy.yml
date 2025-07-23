@@ -20,7 +20,7 @@ jobs:
       - name: Checkout your repository using git
         uses: actions/checkout@v4
       - name: Install, build, and upload your site
-        uses: withastro/action@v1 # Usa la versión estable v1 en lugar de v3
+        uses: withastro/action@v4
         with:
           path: .
           node-version: 18
@@ -35,4 +35,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v2 
+        uses: actions/deploy-pages@v4 
