@@ -1,7 +1,7 @@
 ---
-title: "19/07/2025"
-description: "Una jornada llena de descubrimientos, pensamientos y aprendizajes personales"
-publishDate: "Jul 19 2025"
-heroImage: "/assets/blog/casual-life-3d-meditation-crystal.webp"
+title: "El comienzo de una ilusión"
+description: "Quería dar la bienvenida a cada persona que aterrice en este blog. Uno de los objetivos de este maravilloso lugar es compartir experiencias de diferentes días de mi vida, fotografías, frases y palabras, curiosidades, y poder hacer compañía a aquella persona que me lee a través de la pantalla sin importar la distancia que nos separe."
+pubDate: "Jul 21 2025"
 tags: ["personal", "reflexiones", "vida"]
 ---
+hrgbtgbgt

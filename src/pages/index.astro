@@ -6,6 +6,7 @@ const description = 'Latest articles.';
 const permalink = Astro.site.href;
 
 let allPosts = await Astro.glob('../data/blog-posts/*.md');
+// order by pubDate descending
 allPosts = allPosts.sort((a, b) => new Date(b.frontmatter.pubDate).valueOf() - new Date(a.frontmatter.pubDate).valueOf());
 ---
 

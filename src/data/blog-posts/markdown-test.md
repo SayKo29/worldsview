@@ -1,7 +1,7 @@
 ---
-title: Markdown Test Page
-publishDate: 01 Dec 2021
-description: A sample page with the most common elements of an article, including headings, paragraphs, lists, and images. Use it as a starting point for applying your own styles.
+title: "Nos hemos convertido en \"Quejólogos\"."
+pubDate: "22 JUL 2025"
+description: "La actitud multiplica, y todos sabemos que cualquier cantidad multiplicada por cero es cero. Nos levantamos cada dia con atitudes diferentes: ¿veo lo que tengo o lo que no tengo?. Somos lo que hacemos, pero también somos lo que dejamos de hacer."
 ---
 
 ![Illustration of woman using a computer receiving likes](/assets/blog/casual-life-3d-likes.webp)

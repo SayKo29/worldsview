@@ -26,8 +26,8 @@ Este blog está construido con:
 
 Para contactar con Andrea o colaborar en el blog:
 
-- Email: andrea@worldsview.com
-- Instagram: @andrea_worldsview
+- Email: andreasolsona39@gmail.com
+- Instagram: @worldsvieew
 
 ## Despliegue
 
