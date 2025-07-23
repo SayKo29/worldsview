@@ -9,14 +9,17 @@ import rehypeExternalLinks from 'rehype-external-links'
 export default defineConfig({
   site: 'https://worldsvieew.com',
   integrations: [mdx(), svelte()],
+  output: 'static',
+  adapter: 'static',
+  build: {
+    inlineStylesheets: 'auto'
+  },
   vite: {
+    optimizeDeps: {
+      include: ['svelte', '@astrojs/svelte']
+    },
     ssr: {
       noExternal: ['svelte']
-    },
-    build: {
-      rollupOptions: {
-        external: ['@sveltejs/vite-plugin-svelte']
-      }
     }
   },
   markdown: {
