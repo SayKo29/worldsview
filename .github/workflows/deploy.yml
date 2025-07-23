@@ -1,19 +1,17 @@
 name: Deploy to GitHub Pages
 
 on:
-  # Ejecutar en cada push al branch principal
+  # Trigger the workflow every time you push to the `main` branch
   push:
     branches: [master]
-  # Permitir ejecutar manualmente desde la pestaña Actions
+  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
-# Configuración de permisos para todo el flujo de trabajo
+# Allow this job to clone the repo and create a page deployment
 permissions:
   contents: read
   pages: write
   id-token: write
-  actions: write
-  deployments: write
 
 jobs:
   build:
@@ -22,9 +20,11 @@ jobs:
       - name: Checkout your repository using git
         uses: actions/checkout@v4
       - name: Install, build, and upload your site
-        uses: withastro/action@v3
+        uses: withastro/action@v1 # Usa la versión estable v1 en lugar de v3
         with:
-          package-manager: pnpm@latest
+          path: .
+          node-version: 18
+          package-manager: pnpm
 
   deploy:
     needs: build
@@ -35,4 +35,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4 
+        uses: actions/deploy-pages@v2 

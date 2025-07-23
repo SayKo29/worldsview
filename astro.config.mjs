@@ -7,8 +7,9 @@ import rehypeExternalLinks from 'rehype-external-links'
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://SayKo29.github.io',
+  site: 'https://sayko29.github.io',
   base: '/worldsview',
+  outDir: './dist',
   integrations: [mdx(), svelte()],
   markdown: {
     shikiConfig: {

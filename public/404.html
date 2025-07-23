@@ -7,14 +7,17 @@
   <script>
     // Toma la ruta actual y la redirige a la raíz con un parámetro
     (function() {
-      var segmentCount = 1;
-      var location = window.location;
-      var href = location.href;
-      var pathName = location.pathname;
-      var repo = '/worldsview';
+      var pathSegmentsToKeep = 1;
+      var l = window.location;
       
-      var redirectTo = location.origin + repo + '/?p=' + pathName.slice(1);
-      window.location.replace(redirectTo);
+      // Construye la URL base
+      var origin = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '');
+      var baseUrl = origin + '/worldsview/';
+      
+      // Redirige manteniendo la ruta después del base path
+      l.replace(
+        baseUrl + l.pathname.split('/').slice(pathSegmentsToKeep + 1).join('/')
+      );
     })();
   </script>
 </head>
