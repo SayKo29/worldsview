@@ -34,5 +34,5 @@ export default defineConfig({
       ],
     ],
   },
-  integrations: [mdx(), svelte()]
+  integrations: [mdx(), svelte()],
 })

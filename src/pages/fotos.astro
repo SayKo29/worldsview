@@ -1,22 +1,16 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { photos, categories } from '../data/photos';
-
-const title = 'Galería de Fotos';
-const description = 'Una colección de momentos capturados en imágenes.';
-const permalink = `${Astro.site.href}fotos`;
 ---
 
-<BaseLayout title={title} description={description} permalink={permalink} current="fotos">
+<BaseLayout title="Fotos" current="fotos">
   <div class="container">
-    <h1 class="gallery-title">Galería de Fotos</h1>
-    <p class="gallery-intro">Una colección de momentos especiales capturados a través del tiempo.</p>
-    
-    <div class="categories">
+    <h1>Fotos</h1>
+
+    <div class="filter-container">
+      <button class="filter-btn active" data-category="all">Todas</button>
       {categories.map((category) => (
-        <button class="category-btn" data-category={category.id}>
-          {category.name}
-        </button>
+        <button class="filter-btn" data-category={category}>{category}</button>
       ))}
     </div>
 
@@ -24,8 +18,8 @@ const permalink = `${Astro.site.href}fotos`;
       {photos.map((photo) => (
         <div class="gallery-item" data-category={photo.category} data-foto-id={photo.id}>
           <img 
-            src={`/assets/blog-photos/${photo.filename}`}
-            alt={photo.title}
+            src={photo.url} 
+            alt={photo.title} 
             loading="lazy"
             class="gallery-image"
           />
@@ -39,94 +33,475 @@ const permalink = `${Astro.site.href}fotos`;
     </div>
   </div>
 
-  <!-- Modal Fullscreen -->
-  <div id="fullscreen-modal" class="modal">
+  <!-- Modal para ver fotos -->
+  <div class="modal" id="photoModal">
     <div class="modal-content">
-      <span class="close-modal">&times;</span>
-      <button class="nav-btn prev-btn">&lt;</button>
-      <button class="nav-btn next-btn">&gt;</button>
-      
-      <div class="modal-image-container">
-        <img id="modal-image" src="" alt="" />
-        <div class="modal-info">
-          <h2 id="modal-title"></h2>
-          <p id="modal-description"></p>
-          <div class="modal-metadata">
-            <span id="modal-location"></span>
-            <span id="modal-date"></span>
-          </div>
-          <span id="modal-counter"></span>
+      <div class="modal-header">
+        <h2 id="modalTitle"></h2>
+        <button class="close-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-photo-container">
+          <img id="modalPhoto" src="" alt="" />
         </div>
+        <div class="modal-info">
+          <div class="modal-description">
+            <p id="modalDate" class="modal-date"></p>
+            <p id="modalDescription"></p>
+            <p id="modalLocation" class="location"></p>
+          </div>
+          <div id="modalCommentsList" class="modal-comments"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="prev-photo">&lt;</button>
+        <button class="next-photo">&gt;</button>
       </div>
     </div>
   </div>
 </BaseLayout>
 
+<script>
+  import { photos } from '../data/photos';
+  import { supabase, fetchComments, addComment } from '../lib/supabase';
+
+  // Función para inicializar todo
+  function initializePhotoGallery() {
+    // Filtrado de categorías
+    const filterButtons = document.querySelectorAll('.filter-btn');
+    const galleryItems = document.querySelectorAll('.gallery-item');
+
+    filterButtons.forEach(button => {
+      // Eliminar eventos anteriores para evitar duplicados
+      button.replaceWith(button.cloneNode(true));
+    });
+
+    // Volver a seleccionar los botones después de clonarlos
+    document.querySelectorAll('.filter-btn').forEach(button => {
+      button.addEventListener('click', () => {
+        // Quitar clase activa de todos los botones
+        document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+        
+        // Añadir clase activa al botón clicado
+        button.classList.add('active');
+        
+        const category = button.getAttribute('data-category');
+        
+        document.querySelectorAll('.gallery-item').forEach(item => {
+          if (category === 'all' || item.getAttribute('data-category') === category) {
+            (item as HTMLElement).style.display = 'block';
+          } else {
+            (item as HTMLElement).style.display = 'none';
+          }
+        });
+      });
+    });
+
+    // Modal de fotos
+    const modal = document.getElementById('photoModal') as HTMLDivElement;
+    const modalTitle = document.getElementById('modalTitle') as HTMLHeadingElement;
+    const modalPhoto = document.getElementById('modalPhoto') as HTMLImageElement;
+    const modalDescription = document.getElementById('modalDescription') as HTMLParagraphElement;
+    const modalLocation = document.getElementById('modalLocation') as HTMLParagraphElement;
+    const modalDate = document.getElementById('modalDate') as HTMLParagraphElement;
+    const modalCommentsList = document.getElementById('modalCommentsList') as HTMLDivElement;
+    const closeButton = document.querySelector('.close-modal') as HTMLButtonElement;
+    const prevButton = document.querySelector('.prev-photo') as HTMLButtonElement;
+    const nextButton = document.querySelector('.next-photo') as HTMLButtonElement;
+
+    let currentPhotoIndex = 0;
+    let filteredPhotos = [...photos];
+    let currentPhotoId = '';
+
+    // Abrir modal al hacer clic en una foto
+    document.querySelectorAll('.gallery-item').forEach(item => {
+      // Eliminar eventos anteriores para evitar duplicados
+      const newItem = item.cloneNode(true);
+      item.replaceWith(newItem);
+      
+      // Añadir evento al nuevo elemento
+      newItem.addEventListener('click', (e) => {
+        // Asegurarse de que el clic no fue en un botón de comentarios
+        const target = e.target as HTMLElement;
+        if (target.closest('.comment-count-wrapper')) {
+          return;
+        }
+        
+        // Actualizar la lista de fotos filtradas basada en el filtro actual
+        const activeCategory = document.querySelector('.filter-btn.active')?.getAttribute('data-category') || 'all';
+        if (activeCategory === 'all') {
+          filteredPhotos = [...photos];
+        } else {
+          filteredPhotos = photos.filter(photo => photo.category === activeCategory);
+        }
+        
+        // Encontrar el índice de la foto clicada en la lista filtrada
+        const photoId = parseInt(newItem.getAttribute('data-foto-id') || '0');
+        currentPhotoIndex = filteredPhotos.findIndex(photo => photo.id === photoId);
+        
+        updateModal();
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden'; // Prevenir scroll
+      });
+    });
+
+    // Cerrar modal
+    if (closeButton) {
+      closeButton.addEventListener('click', () => {
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto'; // Restaurar scroll
+      });
+    }
+
+    // Cerrar modal con tecla Escape
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && modal.style.display === 'flex') {
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+      }
+    });
+
+    // Navegación con teclado
+    window.addEventListener('keydown', (e) => {
+      if (modal.style.display === 'flex') {
+        if (e.key === 'ArrowLeft') {
+          showPreviousPhoto();
+        } else if (e.key === 'ArrowRight') {
+          showNextPhoto();
+        }
+      }
+    });
+
+    // Botones de navegación
+    if (prevButton) {
+      prevButton.addEventListener('click', showPreviousPhoto);
+    }
+    
+    if (nextButton) {
+      nextButton.addEventListener('click', showNextPhoto);
+    }
+
+    function showPreviousPhoto() {
+      currentPhotoIndex = (currentPhotoIndex - 1 + filteredPhotos.length) % filteredPhotos.length;
+      updateModal();
+    }
+
+    function showNextPhoto() {
+      currentPhotoIndex = (currentPhotoIndex + 1) % filteredPhotos.length;
+      updateModal();
+    }
+
+    async function updateModal() {
+      const photo = filteredPhotos[currentPhotoIndex];
+      currentPhotoId = photo.id.toString();
+      
+      modalTitle.textContent = photo.title;
+      modalPhoto.src = photo.url;
+      modalPhoto.alt = photo.title;
+      modalDescription.textContent = photo.description;
+      
+      if (photo.location) {
+        modalLocation.textContent = photo.location;
+        modalLocation.style.display = 'block';
+      } else {
+        modalLocation.style.display = 'none';
+      }
+      
+      // Formatear y mostrar la fecha
+      const date = new Date(photo.date);
+      const formattedDate = new Intl.DateTimeFormat('es-ES', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      }).format(date);
+      modalDate.textContent = formattedDate;
+      
+      await loadComments(photo.id.toString());
+    }
+
+    async function loadComments(photoId: string) {
+      if (!modalCommentsList) return;
+      modalCommentsList.innerHTML = '';
+
+      // Crear el contenedor principal de comentarios
+      const commentsContainer = document.createElement('div');
+      commentsContainer.className = 'comments-container';
+      
+      // Título de comentarios
+      const commentsTitle = document.createElement('h3');
+      commentsTitle.textContent = 'Comentarios';
+      commentsContainer.appendChild(commentsTitle);
+      
+      // Lista de comentarios
+      const commentsList = document.createElement('div');
+      commentsList.className = 'comments-list';
+      
+      // Cargar comentarios desde Supabase
+      try {
+        const comments = await fetchComments('fotos', photoId);
+        
+        if (comments.length === 0) {
+          commentsList.innerHTML = '<p class="no-comments">No hay comentarios todavía. ¡Sé el primero en comentar!</p>';
+        } else {
+          comments.forEach(comment => {
+            const commentElement = createCommentElement(comment);
+            commentsList.appendChild(commentElement);
+          });
+        }
+      } catch (error) {
+        console.error('Error cargando comentarios:', error);
+        commentsList.innerHTML = '<p class="no-comments">Error al cargar comentarios. Inténtalo de nuevo más tarde.</p>';
+      }
+      
+      commentsContainer.appendChild(commentsList);
+      
+      // Formulario para añadir comentarios
+      const commentForm = document.createElement('div');
+      commentForm.className = 'comment-form';
+      
+      const form = document.createElement('form');
+      form.innerHTML = `
+        <h4>Deja tu comentario</h4>
+        <div class="form-group">
+          <input type="text" id="author-name-${photoId}" placeholder="Tu nombre" required>
+        </div>
+        <div class="form-group">
+          <textarea id="comment-content-${photoId}" placeholder="Escribe tu comentario aquí..." rows="3" required></textarea>
+        </div>
+        <button type="submit" class="comment-submit-btn">Enviar comentario</button>
+      `;
+      
+      // Manejar el envío del formulario
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const nameInput = form.querySelector(`#author-name-${photoId}`) as HTMLInputElement;
+        const contentInput = form.querySelector(`#comment-content-${photoId}`) as HTMLTextAreaElement;
+        
+        if (nameInput && contentInput && nameInput.value.trim() && contentInput.value.trim()) {
+          // Guardar el nombre para futuros comentarios
+          localStorage.setItem('commentAuthorName', nameInput.value);
+          
+          try {
+            // Enviar comentario a Supabase
+            const newComment = await addComment(
+              contentInput.value,
+              nameInput.value,
+              'fotos',
+              photoId,
+              'photo'
+            );
+            
+            if (newComment) {
+              // Eliminar el mensaje de "no hay comentarios" si existe
+              const noComments = commentsList.querySelector('.no-comments');
+              if (noComments) {
+                commentsList.innerHTML = '';
+              }
+              
+              // Añadir el nuevo comentario a la lista
+              const commentElement = createCommentElement(newComment);
+              commentsList.appendChild(commentElement);
+              
+              // Limpiar el campo de comentario
+              contentInput.value = '';
+            }
+          } catch (error) {
+            console.error('Error al añadir comentario:', error);
+            alert('No se pudo añadir el comentario. Inténtalo de nuevo más tarde.');
+          }
+        }
+      });
+      
+      commentForm.appendChild(form);
+      commentsContainer.appendChild(commentForm);
+      
+      // Añadir todo al contenedor de comentarios
+      modalCommentsList.appendChild(commentsContainer);
+      
+      // Rellenar el campo de nombre si existe en localStorage
+      const savedAuthorName = localStorage.getItem('commentAuthorName');
+      if (savedAuthorName) {
+        const nameInput = modalCommentsList.querySelector(`#author-name-${photoId}`) as HTMLInputElement;
+        if (nameInput) {
+          nameInput.value = savedAuthorName;
+        }
+      }
+    }
+
+    function createCommentElement(comment: any) {
+      const commentElement = document.createElement('div');
+      commentElement.className = 'comment';
+      
+      const commentHeader = document.createElement('div');
+      commentHeader.className = 'comment-header';
+      
+      const userInfo = document.createElement('div');
+      userInfo.className = 'user-info';
+      
+      // Determinar el nombre a mostrar
+      const displayName = comment.author_name || 
+                         (comment.profile && comment.profile.username) || 
+                         'Usuario anónimo';
+      
+      userInfo.innerHTML = `<strong>${displayName}</strong>`;
+      
+      const commentDate = document.createElement('div');
+      commentDate.className = 'comment-date';
+      
+      // Formatear la fecha
+      const date = new Date(comment.created_at);
+      commentDate.textContent = date.toLocaleString('es-ES');
+      
+      commentHeader.appendChild(userInfo);
+      commentHeader.appendChild(commentDate);
+      
+      const commentContent = document.createElement('div');
+      commentContent.className = 'comment-content';
+      commentContent.textContent = comment.content;
+      
+      commentElement.appendChild(commentHeader);
+      commentElement.appendChild(commentContent);
+      
+      return commentElement;
+    }
+
+    // Prevenir que clics dentro del modal cierren el modal
+    const modalContent = document.querySelector('.modal-content') as HTMLDivElement;
+    if (modalContent) {
+      modalContent.addEventListener('click', (e) => {
+        e.stopPropagation();
+      });
+    }
+
+    // Cerrar modal al hacer clic fuera del contenido
+    if (modal) {
+      modal.addEventListener('click', () => {
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+      });
+    }
+
+    // Configurar suscripción a cambios en comentarios
+    setupSubscription();
+  }
+
+  // Configurar suscripción a cambios en comentarios
+  let subscription: any;
+
+  function setupSubscription() {
+    // Limpiar suscripción anterior si existe
+    if (subscription) {
+      subscription.unsubscribe();
+    }
+    
+    // Crear canal de suscripción para comentarios
+    subscription = supabase
+      .channel('public:comments')
+      .on('postgres_changes', 
+          { event: '*', schema: 'public', table: 'comments', filter: `resource_type=eq.photo` }, 
+          (payload: any) => {
+            // Si el modal está abierto y se refiere a la foto actual
+            const modal = document.getElementById('photoModal') as HTMLDivElement;
+            const currentPhotoId = document.querySelector('.gallery-item[data-selected="true"]') as HTMLElement;
+            const photoId = currentPhotoId?.getAttribute('data-foto-id');
+            
+            if (modal && modal.style.display === 'flex' && payload.new && payload.new.resource_id === currentPhotoId) {
+              // Recargar comentarios
+              if (photoId) {
+                const modalCommentsList = document.getElementById('modalCommentsList') as HTMLDivElement;
+                if (modalCommentsList) {
+                  // Usar la función loadComments del scope superior
+                  initializePhotoGallery();
+                }
+              }
+            }
+          })
+      .subscribe();
+  }
+
+  // Inicializar cuando el DOM esté listo
+  document.addEventListener('DOMContentLoaded', initializePhotoGallery);
+  
+  // Reinicializar cuando se navegue con View Transitions API
+  document.addEventListener('astro:page-load', initializePhotoGallery);
+  
+  // Reinicializar cuando se navegue con View Transitions API (afterNavigate)
+  document.addEventListener('astro:after-swap', initializePhotoGallery);
+  
+  // Limpiar suscripción al desmontar
+  window.addEventListener('beforeunload', () => {
+    if (subscription) {
+      subscription.unsubscribe();
+    }
+  });
+</script>
+
 <style>
-  .gallery-intro {
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1rem;
+  }
+
+  h1 {
     text-align: center;
     margin-bottom: 2rem;
-    font-size: 1.2rem;
-    color: var(--text-secondary);
   }
 
-  .gallery-title {
-    text-align: center;
-    margin-bottom: 1rem;
-  }
-
-  .categories {
+  .filter-container {
     display: flex;
     flex-wrap: wrap;
-    gap: 1rem;
     justify-content: center;
     margin-bottom: 2rem;
+    gap: 0.5rem;
   }
 
-  .category-btn {
+  .filter-btn {
+    background: none;
+    border: 1px solid var(--border-color, #ddd);
     padding: 0.5rem 1rem;
-    border: 1px solid var(--primary-color);
-    background: transparent;
-    color: var(--text-main);
     border-radius: 20px;
     cursor: pointer;
     transition: all 0.3s ease;
+    font-size: 0.9rem;
   }
 
-  .category-btn:hover,
-  .category-btn.active {
-    background: var(--primary-color);
-    color: var(--warm-light);
+  .filter-btn:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+  }
+
+  .filter-btn.active {
+    background-color: var(--primary-color, #e67e22);
+    color: white;
+    border-color: var(--primary-color, #e67e22);
   }
 
   .gallery-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 2rem;
-    margin-top: 2rem;
+    gap: 1.5rem;
   }
 
   .gallery-item {
     position: relative;
-    border-radius: 12px;
+    border-radius: 8px;
     overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     cursor: pointer;
+    aspect-ratio: 3/2;
     transition: transform 0.3s ease, box-shadow 0.3s ease;
-    background: rgba(254, 247, 230, 0.1);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(230, 126, 34, 0.2);
   }
 
   .gallery-item:hover {
     transform: translateY(-5px);
-    box-shadow: 0 10px 30px rgba(139, 69, 19, 0.2);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
   }
 
   .gallery-image {
     width: 100%;
-    height: 250px;
+    height: 100%;
     object-fit: cover;
-    transition: transform 0.3s ease;
+    transition: transform 0.5s ease;
   }
 
   .gallery-item:hover .gallery-image {
@@ -138,14 +513,13 @@ const permalink = `${Astro.site.href}fotos`;
     bottom: 0;
     left: 0;
     right: 0;
-    background: linear-gradient(
-      transparent,
-      rgba(45, 27, 14, 0.8)
-    );
-    color: var(--warm-light);
-    padding: 1.5rem;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0));
+    color: white;
+    padding: 1.5rem 1rem 1rem;
     transform: translateY(100%);
     transition: transform 0.3s ease;
+    display: flex;
+    flex-direction: column;
   }
 
   .gallery-item:hover .gallery-overlay {
@@ -153,323 +527,468 @@ const permalink = `${Astro.site.href}fotos`;
   }
 
   .gallery-overlay h3 {
-    margin: 0 0 0.5rem 0;
-    font-size: 1.3rem;
+    margin: 0 0 0.5rem;
+    font-size: 1.2rem;
   }
 
   .gallery-overlay p {
-    margin: 0;
-    font-size: 1rem;
+    margin: 0 0 0.5rem;
+    font-size: 0.9rem;
     opacity: 0.9;
   }
 
   .location {
-    display: block;
-    margin-top: 0.5rem;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     opacity: 0.8;
+    display: flex;
+    align-items: center;
+    margin-top: 0.5rem;
   }
 
-  /* Modal Styles */
+  .location::before {
+    content: "📍";
+    margin-right: 0.5rem;
+  }
+
+  .comment-count-wrapper {
+    margin-top: 0.5rem;
+    z-index: 10;
+    position: relative;
+  }
+
+  /* Modal */
   .modal {
     display: none;
     position: fixed;
-    z-index: 1000;
-    left: 0;
     top: 0;
+    left: 0;
     width: 100%;
     height: 100%;
     background-color: rgba(0, 0, 0, 0.9);
-    backdrop-filter: blur(10px);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+    padding: 1rem;
   }
 
   .modal-content {
-    position: relative;
+    background: rgba(254, 247, 230, 0.15);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(230, 126, 34, 0.2);
+    border-radius: 16px;
+    max-width: 1200px;
     width: 100%;
-    height: 100%;
+    max-height: 90vh;
+    position: relative;
+    overflow: hidden;
     display: flex;
+    flex-direction: column;
+    color: var(--text-main);
+    box-shadow: 0 8px 32px rgba(139, 69, 19, 0.15), inset 0 1px 0 rgba(254, 247, 230, 0.3);
+  }
+
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
     align-items: center;
-    justify-content: center;
+    padding: 1rem;
+    border-bottom: 1px solid rgba(230, 126, 34, 0.2);
+  }
+
+  .modal-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: var(--text-main);
   }
 
   .close-modal {
-    position: absolute;
-    top: 20px;
-    right: 30px;
-    color: var(--warm-light);
-    font-size: 3rem;
-    font-weight: bold;
-    cursor: pointer;
-    z-index: 1001;
-    transition: color 0.3s ease;
-  }
-
-  .close-modal:hover {
-    color: var(--primary-color);
-  }
-
-  .nav-btn {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    background: rgba(230, 126, 34, 0.8);
-    color: var(--warm-light);
+    background: none;
     border: none;
-    padding: 1rem 1.5rem;
-    font-size: 2rem;
+    font-size: 1.5rem;
     cursor: pointer;
-    border-radius: 8px;
-    transition: background 0.3s ease;
-    z-index: 1001;
+    color: var(--text-main);
   }
 
-  .nav-btn:hover {
-    background: rgba(230, 126, 34, 1);
+  .modal-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
   }
 
-  .prev-btn {
-    left: 20px;
+  .modal-photo-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #000;
+    overflow: hidden;
   }
 
-  .next-btn {
-    right: 20px;
-  }
-
-  .modal-image-container {
-    position: relative;
-    max-width: 90%;
-    max-height: 90%;
-    text-align: center;
-  }
-
-  #modal-image {
+  .modal-photo-container img {
     max-width: 100%;
-    max-height: 80vh;
+    max-height: 70vh;
     object-fit: contain;
-    border-radius: 8px;
   }
 
   .modal-info {
-    margin-top: 1rem;
-    color: var(--warm-light);
-  }
-
-  .modal-info h2 {
-    margin: 0 0 0.5rem 0;
-    font-size: 2rem;
-  }
-
-  .modal-info p {
-    margin: 0 0 1rem 0;
-    font-size: 1.2rem;
-    opacity: 0.9;
-  }
-
-  .modal-metadata {
+    width: 350px;
     display: flex;
-    gap: 1rem;
-    justify-content: center;
-    font-size: 0.9rem;
-    opacity: 0.7;
-    margin-bottom: 0.5rem;
+    flex-direction: column;
+    border-left: 1px solid rgba(230, 126, 34, 0.2);
+    background: rgba(254, 247, 230, 0.15);
   }
 
-  #modal-counter {
+  .modal-description {
+    padding: 1rem;
+    border-bottom: 1px solid rgba(230, 126, 34, 0.2);
+  }
+
+  .modal-date {
+    font-weight: 500;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .modal-comments {
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  /* Estilos para los comentarios */
+  .comments-container {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .comments-container h3 {
+    padding: 1rem;
+    margin: 0;
+    border-bottom: 1px solid rgba(230, 126, 34, 0.2);
+    font-size: 1.1rem;
+    color: var(--text-main);
+  }
+
+  .comments-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+  }
+
+  .no-comments {
+    font-style: italic;
+    color: var(--text-secondary);
+    text-align: center;
+    padding: 1.5rem;
+    background: rgba(254, 247, 230, 0.1);
+    border-radius: 8px;
+    border: 1px dashed rgba(230, 126, 34, 0.3);
+  }
+
+  .comment {
+    padding: 1rem;
+    background: rgba(254, 247, 230, 0.1);
+    border-radius: 8px;
+    border-left: 3px solid var(--primary-color);
+    margin-bottom: 1rem;
+  }
+
+  .comment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.75rem;
+  }
+
+  .user-info {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .user-info strong {
+    color: var(--text-main);
+    font-size: 0.95rem;
+  }
+
+  .comment-date {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+  }
+
+  .comment-content {
+    color: var(--text-main);
+    font-size: 0.95rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .comment-form {
+    padding: 1rem;
+    background: rgba(254, 247, 230, 0.1);
+    border-top: 1px solid rgba(230, 126, 34, 0.2);
+  }
+
+  .comment-form h4 {
+    margin: 0 0 1rem 0;
     font-size: 1rem;
-    opacity: 0.7;
+    color: var(--text-main);
+  }
+
+  .comment-form form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .form-group {
+    margin-bottom: 0.75rem;
+  }
+
+  .form-group input,
+  .form-group textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid rgba(230, 126, 34, 0.3);
+    border-radius: 8px;
+    background: rgba(254, 247, 230, 0.1);
+    color: var(--text-main);
+    font-size: 0.95rem;
+    font-family: var(--font-family-main);
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    letter-spacing: 0.03em;
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    box-shadow: 0 2px 5px rgba(139, 69, 19, 0.1);
+  }
+
+  .form-group input:focus,
+  .form-group textarea:focus {
+    border-color: var(--primary-color);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(230, 126, 34, 0.2), 0 2px 8px rgba(230, 126, 34, 0.2);
+  }
+
+  .form-group textarea {
+    resize: vertical;
+    min-height: 100px;
+    line-height: 1.5;
+  }
+
+  .comment-submit-btn {
+    background-color: var(--primary-color);
+    color: var(--warm-light);
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: var(--font-family-main);
+    transition: all 0.3s ease;
+    font-size: 0.95rem;
+    align-self: flex-start;
+    letter-spacing: 0.03em;
+    box-shadow: 0 2px 5px rgba(139, 69, 19, 0.2);
+    text-transform: uppercase;
+  }
+
+  .comment-submit-btn:hover {
+    background-color: var(--accent-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(139, 69, 19, 0.3);
+  }
+
+  .comment-submit-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 3px rgba(139, 69, 19, 0.2);
+  }
+
+  .modal-footer {
+    display: flex;
+    justify-content: space-between;
+    padding: 1rem;
+    border-top: 1px solid rgba(230, 126, 34, 0.2);
+  }
+
+  .prev-photo,
+  .next-photo {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    transition: background-color 0.3s ease;
+    color: var(--text-main);
+  }
+
+  .prev-photo:hover,
+  .next-photo:hover {
+    background-color: rgba(230, 126, 34, 0.1);
+  }
+
+  /* Modo oscuro */
+  :root.theme-dark .modal-content {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+
+  :root.theme-dark .modal-header,
+  :root.theme-dark .modal-description,
+  :root.theme-dark .modal-info,
+  :root.theme-dark .comments-container h3,
+  :root.theme-dark .comment-form,
+  :root.theme-dark .modal-footer {
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+
+  :root.theme-dark .no-comments {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+
+  :root.theme-dark .comment {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  :root.theme-dark .form-group input,
+  :root.theme-dark .form-group textarea {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  }
+
+  :root.theme-dark .form-group input:focus,
+  :root.theme-dark .form-group textarea:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(255, 140, 66, 0.3), 0 2px 8px rgba(255, 140, 66, 0.2);
+  }
+
+  :root.theme-dark .comment-submit-btn {
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+  }
+
+  :root.theme-dark .comment-submit-btn:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
   }
 
   /* Responsive */
-  @media (max-width: 768px) {
+  @media (max-width: 900px) {
+    .modal-body {
+      flex-direction: column;
+    }
+
+    .modal-info {
+      width: 100%;
+      border-left: none;
+      border-top: 1px solid rgba(230, 126, 34, 0.2);
+    }
+
+    .modal-photo-container {
+      height: auto;
+      max-height: 65vh;
+    }
+
+    .modal-photo-container img {
+      max-height: 65vh;
+      width: 100%;
+      object-fit: contain;
+    }
+    
+    :root.theme-dark .modal-info {
+      border-top-color: rgba(255, 255, 255, 0.2);
+    }
+  }
+
+  @media (max-width: 600px) {
     .gallery-grid {
       grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-      gap: 1rem;
+    }
+    
+    .modal-content {
+      margin: 0;
+      max-height: 100vh;
+      height: 100%;
+      border-radius: 0;
+      width: 100%;
     }
 
-    .gallery-image {
-      height: 200px;
+    .modal {
+      padding: 0;
+    }
+    
+    .modal-photo-container {
+      height: auto;
+      max-height: 75vh;
     }
 
-    .nav-btn {
-      padding: 0.8rem 1.2rem;
-      font-size: 1.5rem;
+    .modal-photo-container img {
+      max-height: 75vh;
+      width: 100%;
+      object-fit: contain;
+    }
+    
+    .modal-info {
+      max-height: 50vh;
+      overflow-y: auto;
+    }
+    
+    .comment-form {
+      padding: 0.75rem;
+      position: sticky;
+      bottom: 0;
+      background: rgba(254, 247, 230, 0.95);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      z-index: 5;
+      border-top: 1px solid rgba(230, 126, 34, 0.3);
+    }
+    
+    :root.theme-dark .comment-form {
+      background: rgba(0, 0, 0, 0.8);
+      border-top: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .comments-list {
+      padding: 0.75rem;
+    }
+    
+    .comment-submit-btn {
+      width: 100%;
+      padding: 0.6rem;
     }
 
-    .close-modal {
-      font-size: 2.5rem;
-      top: 15px;
-      right: 20px;
+    .modal-footer {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(0, 0, 0, 0.5);
+      border-top: none;
     }
 
-    .modal-info h2 {
-      font-size: 1.5rem;
-    }
-
-    .modal-info p {
-      font-size: 1rem;
-    }
-
-    .categories {
-      gap: 0.5rem;
-    }
-
-    .category-btn {
-      padding: 0.4rem 0.8rem;
-      font-size: 0.9rem;
+    .prev-photo,
+    .next-photo {
+      color: white;
+      font-size: 2rem;
+      padding: 0.5rem 1.5rem;
     }
   }
 
   @media (max-width: 480px) {
-    .gallery-grid {
-      grid-template-columns: 1fr;
+    .modal-photo-container {
+      max-height: 80vh;
     }
 
-    .nav-btn {
-      padding: 0.6rem 1rem;
-      font-size: 1.2rem;
+    .modal-photo-container img {
+      max-height: 80vh;
     }
-
-    .prev-btn {
-      left: 10px;
-    }
-
-    .next-btn {
-      right: 10px;
-    }
-
-    .categories {
-      flex-direction: column;
-      align-items: stretch;
-      padding: 0 1rem;
-    }
-
-    .category-btn {
-      width: 100%;
-      text-align: center;
+    
+    .modal-info {
+      max-height: 60vh;
     }
   }
-</style>
-
-<script>
-  import { photos } from '../data/photos';
-
-  let currentFotoIndex = 0;
-  let currentCategory: string | null = null;
-
-  // Elementos del DOM
-  const modal = document.getElementById('fullscreen-modal');
-  const modalImage = document.getElementById('modal-image') as HTMLImageElement;
-  const modalTitle = document.getElementById('modal-title');
-  const modalDescription = document.getElementById('modal-description');
-  const modalLocation = document.getElementById('modal-location');
-  const modalDate = document.getElementById('modal-date');
-  const modalCounter = document.getElementById('modal-counter');
-  const closeBtn = document.querySelector('.close-modal');
-  const prevBtn = document.querySelector('.prev-btn');
-  const nextBtn = document.querySelector('.next-btn');
-  const categoryBtns = document.querySelectorAll('.category-btn');
-  const galleryItems = document.querySelectorAll('.gallery-item');
-
-  // Filtrado por categorías
-  categoryBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const category = btn.getAttribute('data-category');
-      
-      // Toggle active state
-      if (currentCategory === category) {
-        currentCategory = null;
-        btn.classList.remove('active');
-        showAllPhotos();
-      } else {
-        currentCategory = category;
-        categoryBtns.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        filterPhotosByCategory(category);
-      }
-    });
-  });
-
-  function showAllPhotos() {
-    galleryItems.forEach(item => {
-      item.style.display = 'block';
-    });
-  }
-
-  function filterPhotosByCategory(category: string) {
-    galleryItems.forEach(item => {
-      if (item.getAttribute('data-category') === category) {
-        item.style.display = 'block';
-      } else {
-        item.style.display = 'none';
-      }
-    });
-  }
-
-  // Abrir modal
-  galleryItems.forEach((item, index) => {
-    item.addEventListener('click', () => {
-      currentFotoIndex = index;
-      openModal();
-    });
-  });
-
-  // Cerrar modal
-  closeBtn.addEventListener('click', closeModal);
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) {
-      closeModal();
-    }
-  });
-
-  // Navegación
-  prevBtn.addEventListener('click', () => {
-    currentFotoIndex = (currentFotoIndex - 1 + photos.length) % photos.length;
-    updateModal();
-  });
-
-  nextBtn.addEventListener('click', () => {
-    currentFotoIndex = (currentFotoIndex + 1) % photos.length;
-    updateModal();
-  });
-
-  // Navegación con teclado
-  document.addEventListener('keydown', (e) => {
-    if (modal.style.display === 'block') {
-      switch(e.key) {
-        case 'Escape':
-          closeModal();
-          break;
-        case 'ArrowLeft':
-          currentFotoIndex = (currentFotoIndex - 1 + photos.length) % photos.length;
-          updateModal();
-          break;
-        case 'ArrowRight':
-          currentFotoIndex = (currentFotoIndex + 1) % photos.length;
-          updateModal();
-          break;
-      }
-    }
-  });
-
-  function openModal() {
-    modal.style.display = 'block';
-    document.body.style.overflow = 'hidden';
-    updateModal();
-  }
-
-  function closeModal() {
-    modal.style.display = 'none';
-    document.body.style.overflow = 'auto';
-  }
-
-  function updateModal() {
-    const foto = photos[currentFotoIndex];
-    modalImage.src = `/assets/blog-photos/${foto.filename}`;
-    modalImage.alt = foto.title;
-    modalTitle.textContent = foto.title;
-    modalDescription.textContent = foto.description;
-    modalLocation.textContent = foto.location || '';
-    modalDate.textContent = new Date(foto.date).toLocaleDateString();
-    modalCounter.textContent = `${currentFotoIndex + 1} / ${photos.length}`;
-  }
-</script> 
+</style> 

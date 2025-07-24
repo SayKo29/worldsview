@@ -1,0 +1,41 @@
+---
+import CommentList from './CommentList.svelte';
+
+interface Props {
+  pagePath: string;
+  resourceId?: string;
+  resourceType?: string;
+}
+
+const { pagePath, resourceId, resourceType } = Astro.props;
+---
+
+<section class="comments-container">
+  <h2>Comentarios</h2>
+  <div class="comment-list-container">
+    <CommentList 
+      client:load 
+      pagePath={pagePath} 
+      resourceId={resourceId} 
+      resourceType={resourceType} 
+    />
+  </div>
+</section>
+
+<style>
+  .comments-container {
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--border-color);
+  }
+
+  .comments-container h2 {
+    margin-bottom: 1.5rem;
+    font-size: 1.5rem;
+    text-align: center;
+  }
+  
+  .comment-list-container {
+    width: 100%;
+  }
+</style> 

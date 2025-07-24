@@ -1,29 +1,61 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import Bio from '../components/Bio.astro';
 
-const title = 'Blog';
-const description = 'Latest articles.';
-const permalink = Astro.site.href;
+const title = 'World\'s View';
+const description = 'Un blog sobre la vida y experiencias personales';
+const permalink = Astro.site?.href || '/';
 
+// Obtener todos los posts
 let allPosts = await Astro.glob('../data/blog-posts/*.md');
-// order by pubDate descending
+
+// Ordenar por fecha de publicación (más reciente primero)
 allPosts = allPosts.sort((a, b) => new Date(b.frontmatter.pubDate).valueOf() - new Date(a.frontmatter.pubDate).valueOf());
+
+// Procesar los posts para extraer el slug
+const processedPosts = allPosts.map(post => {
+  const slug = post.file.split('/').pop().split('.').shift();
+  return { post, slug };
+});
 ---
 
-<BaseLayout title={title} description={description} permalink={permalink} current="blog">
+<BaseLayout title={title} description={description} permalink={permalink} current="home">
   <div class="container">
     <h1>Blog</h1>
-    {allPosts.map((post, index) => {
+    {processedPosts.map((item, index) => {
+      const { post, slug } = item;
       return (
-        <div>
-          { index !== 0 && <hr /> }
-          <div class="post-item">
-            <h2>
-              {post.frontmatter.title}
-            </h2>
-            <p>{post.frontmatter.description}</p>
-            <div class="post-item-footer">
-              <span class="post-item-date">— {post.frontmatter.pubDate}</span>
+        <div class="post-container">
+          <h2>{post.frontmatter.title}</h2>
+          <div class="post-item-date">— {post.frontmatter.pubDate}</div>
+          <div set:html={post.compiledContent()} />
+          <div class="post-item-footer">
+            <div class="post-item-comments">
+              <div class="comment-wrapper" data-post-slug={slug}>
+                <button class="comment-toggle-btn">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                  </svg>
+                  <span>Comentarios</span>
+                </button>
+                <div class="comments-panel hidden">
+                  <div class="comments-list">
+                    <p class="no-comments">No hay comentarios todavía. ¡Sé el primero en comentar!</p>
+                  </div>
+                  <div class="comment-form">
+                    <h4>Deja tu comentario</h4>
+                    <form data-post-slug={slug}>
+                      <div class="form-group">
+                        <input type="text" name="author" placeholder="Tu nombre" required>
+                      </div>
+                      <div class="form-group">
+                        <textarea name="content" placeholder="Escribe tu comentario aquí..." rows="3" required></textarea>
+                      </div>
+                      <button type="submit" class="comment-submit-btn">Enviar comentario</button>
+                    </form>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -32,21 +64,516 @@ allPosts = allPosts.sort((a, b) => new Date(b.frontmatter.pubDate).valueOf() - n
   </div>
 </BaseLayout>
 
+<script>
+  // Importar el código de Supabase
+  import { supabase, fetchComments, addComment } from '../lib/supabase';
+  
+  // Función para inicializar los comentarios
+  function initializeComments() {
+    // Manejar la apertura y cierre de los paneles de comentarios
+    document.querySelectorAll('.comment-toggle-btn').forEach(button => {
+      // Eliminar eventos anteriores para evitar duplicados
+      button.replaceWith(button.cloneNode(true));
+    });
+    
+    // Volver a seleccionar los botones después de clonarlos
+    document.querySelectorAll('.comment-toggle-btn').forEach(button => {
+      button.addEventListener('click', () => {
+        const wrapper = button.closest('.comment-wrapper');
+        if (wrapper) {
+          const panel = wrapper.querySelector('.comments-panel') as HTMLElement;
+          if (panel) {
+            // Añadir/quitar la clase hidden con transición
+            if (panel.classList.contains('hidden')) {
+              // Mostrar el panel
+              panel.classList.remove('hidden');
+              panel.style.maxHeight = '0';
+              panel.style.opacity = '0';
+              
+              // Forzar un reflow para que la transición funcione
+              void panel.offsetWidth;
+              
+              // Establecer altura máxima y opacidad para la animación
+              panel.style.maxHeight = panel.scrollHeight + 'px';
+              panel.style.opacity = '1';
+              
+              // Cargar comentarios
+              const slug = wrapper.getAttribute('data-post-slug');
+              if (slug) {
+                loadComments(slug, panel.querySelector('.comments-list') as HTMLElement);
+              }
+            } else {
+              // Ocultar el panel con transición
+              panel.style.maxHeight = '0';
+              panel.style.opacity = '0';
+              
+              // Añadir la clase hidden después de la transición
+              setTimeout(() => {
+                panel.classList.add('hidden');
+                // Restaurar estilos para la próxima apertura
+                panel.style.maxHeight = '';
+                panel.style.opacity = '';
+              }, 300); // Debe coincidir con la duración de la transición en CSS
+            }
+          }
+        }
+      });
+    });
+    
+    // Manejar el envío de comentarios
+    document.querySelectorAll('.comment-form form').forEach(form => {
+      // Eliminar eventos anteriores para evitar duplicados
+      form.replaceWith(form.cloneNode(true));
+    });
+    
+    // Volver a seleccionar los formularios después de clonarlos
+    document.querySelectorAll('.comment-form form').forEach(form => {
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const slug = form.getAttribute('data-post-slug');
+        const authorInput = form.querySelector('input[name="author"]') as HTMLInputElement;
+        const contentInput = form.querySelector('textarea[name="content"]') as HTMLTextAreaElement;
+        
+        if (slug && authorInput && contentInput && authorInput.value.trim() && contentInput.value.trim()) {
+          // Guardar el nombre para futuros comentarios
+          localStorage.setItem('commentAuthorName', authorInput.value);
+          
+          try {
+            // Enviar comentario a Supabase
+            const newComment = await addComment(
+              contentInput.value,
+              authorInput.value,
+              'blog',
+              slug,
+              'post'
+            );
+            
+            if (newComment) {
+              // Obtener el contenedor de comentarios
+              const wrapper = form.closest('.comment-wrapper');
+              if (wrapper) {
+                const commentsList = wrapper.querySelector('.comments-list');
+                if (commentsList) {
+                  // Eliminar el mensaje de "no hay comentarios" si existe
+                  const noComments = commentsList.querySelector('.no-comments');
+                  if (noComments) {
+                    commentsList.innerHTML = '';
+                  }
+                  
+                  // Añadir el nuevo comentario a la lista
+                  const commentElement = createCommentElement(newComment);
+                  (commentElement as HTMLElement).style.opacity = '0';
+                  commentsList.appendChild(commentElement);
+                  
+                  // Forzar un reflow para que la transición funcione
+                  void (commentElement as HTMLElement).offsetWidth;
+                  
+                  // Aplicar la transición de entrada
+                  (commentElement as HTMLElement).style.opacity = '1';
+                  
+                  // Actualizar la altura máxima del panel para acomodar el nuevo comentario
+                  const panel = wrapper.querySelector('.comments-panel') as HTMLElement;
+                  if (panel && !panel.classList.contains('hidden')) {
+                    panel.style.maxHeight = panel.scrollHeight + 'px';
+                  }
+                  
+                  // Limpiar el campo de comentario
+                  contentInput.value = '';
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Error al añadir comentario:', error);
+            alert('No se pudo añadir el comentario. Inténtalo de nuevo más tarde.');
+          }
+        }
+      });
+    });
+  }
+  
+  // Función para crear un elemento de comentario
+  function createCommentElement(comment: any) {
+    const commentElement = document.createElement('div');
+    commentElement.className = 'comment';
+    
+    const commentHeader = document.createElement('div');
+    commentHeader.className = 'comment-header';
+    
+    const userInfo = document.createElement('div');
+    userInfo.className = 'user-info';
+    
+    // Determinar el nombre a mostrar
+    const displayName = comment.author_name || 
+                       (comment.profile && comment.profile.username) || 
+                       'Usuario anónimo';
+    
+    userInfo.innerHTML = `<strong>${displayName}</strong>`;
+    
+    const commentDate = document.createElement('div');
+    commentDate.className = 'comment-date';
+    
+    // Formatear la fecha
+    const date = new Date(comment.created_at);
+    commentDate.textContent = date.toLocaleString('es-ES');
+    
+    commentHeader.appendChild(userInfo);
+    commentHeader.appendChild(commentDate);
+    
+    const commentContent = document.createElement('div');
+    commentContent.className = 'comment-content';
+    commentContent.textContent = comment.content;
+    
+    commentElement.appendChild(commentHeader);
+    commentElement.appendChild(commentContent);
+    
+    return commentElement;
+  }
+  
+  // Función para cargar comentarios
+  async function loadComments(slug: string, container: HTMLElement | null) {
+    if (!container) return;
+    
+    try {
+      // Cargar comentarios desde Supabase
+      const comments = await fetchComments('blog', slug);
+      
+      // Limpiar el contenedor
+      container.innerHTML = '';
+      
+      if (comments.length === 0) {
+        container.innerHTML = '<p class="no-comments">No hay comentarios todavía. ¡Sé el primero en comentar!</p>';
+      } else {
+        comments.forEach(comment => {
+          const commentElement = createCommentElement(comment);
+          container.appendChild(commentElement);
+        });
+      }
+      
+      // Rellenar el campo de nombre si existe en localStorage
+      const wrapper = container.closest('.comment-wrapper') as HTMLElement;
+      if (wrapper) {
+        const form = wrapper.querySelector('form');
+        if (form) {
+          const authorInput = form.querySelector('input[name="author"]') as HTMLInputElement;
+          if (authorInput) {
+            const savedAuthorName = localStorage.getItem('commentAuthorName');
+            if (savedAuthorName) {
+              authorInput.value = savedAuthorName;
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error cargando comentarios:', error);
+      container.innerHTML = '<p class="no-comments">Error al cargar comentarios. Inténtalo de nuevo más tarde.</p>';
+    }
+  }
+  
+  // Configurar suscripción a cambios en comentarios
+  let subscriptions: any[] = [];
+  
+  function setupSubscriptions() {
+    // Limpiar suscripciones anteriores
+    subscriptions.forEach(subscription => {
+      if (subscription) {
+        subscription.unsubscribe();
+      }
+    });
+    subscriptions = [];
+    
+    // Crear suscripciones para cada post
+    document.querySelectorAll('.comment-wrapper').forEach(wrapper => {
+      const slug = wrapper.getAttribute('data-post-slug');
+      if (slug) {
+        const subscription = supabase
+          .channel(`blog-comments-${slug}`)
+          .on('postgres_changes', 
+              { event: '*', schema: 'public', table: 'comments', filter: `resource_id=eq.${slug}` }, 
+              () => {
+                // Recargar comentarios si el panel está visible
+                const panel = wrapper.querySelector('.comments-panel');
+                if (panel && !panel.classList.contains('hidden')) {
+                  const commentsList = panel.querySelector('.comments-list');
+                  loadComments(slug, commentsList as HTMLElement);
+                }
+              })
+          .subscribe();
+        
+        subscriptions.push(subscription);
+      }
+    });
+  }
+  
+  // Inicializar cuando el DOM esté listo
+  document.addEventListener('DOMContentLoaded', () => {
+    initializeComments();
+    setupSubscriptions();
+  });
+  
+  // Reinicializar cuando se navegue con View Transitions API
+  document.addEventListener('astro:page-load', () => {
+    initializeComments();
+    setupSubscriptions();
+  });
+  
+  // Reinicializar cuando se navegue con View Transitions API (afterNavigate)
+  document.addEventListener('astro:after-swap', () => {
+    initializeComments();
+    setupSubscriptions();
+  });
+  
+  // Limpiar suscripciones al desmontar
+  window.addEventListener('beforeunload', () => {
+    subscriptions.forEach(subscription => {
+      if (subscription) {
+        subscription.unsubscribe();
+      }
+    });
+  });
+</script>
+
 <style>
-  h2,
-  .post-item-footer {
-    font-family: var(--font-family-main);
-    font-weight: 400;
+  .container {
+    max-width: 800px;
+  }
+
+  h1 {
+    text-align: center;
+  }
+
+  .post-container {
+    margin-bottom: 4rem;
+  }
+
+  h2 {
+    margin-bottom: 0.5rem;
   }
 
   .post-item-date {
     color: var(--text-secondary);
-    text-align: left;
-    text-transform: uppercase;
-    margin-right: 16px;
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
   }
 
-  hr {
-    margin: 60px auto;
+  .post-item-footer {
+    margin-top: 2rem;
+    border-top: 1px solid rgba(230, 126, 34, 0.2);
+    padding-top: 1rem;
+  }
+
+  .post-item-comments {
+    margin-top: 1rem;
+  }
+
+  .comment-wrapper {
+    position: relative;
+  }
+
+  .comment-toggle-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: none;
+    border: 1px solid rgba(230, 126, 34, 0.3);
+    border-radius: 20px;
+    padding: 0.5rem 1rem;
+    color: var(--text-main);
+    font-family: var(--font-family-main);
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+
+  .comment-toggle-btn:hover {
+    background-color: rgba(230, 126, 34, 0.1);
+  }
+
+  .comments-panel {
+    margin-top: 1rem;
+    background: rgba(254, 247, 230, 0.1);
+    border: 1px solid rgba(230, 126, 34, 0.2);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: max-height 0.3s ease, opacity 0.3s ease;
+  }
+
+  .comments-panel.hidden {
+    display: none;
+  }
+
+  .comments-list {
+    padding: 1rem;
+  }
+
+  .no-comments {
+    font-style: italic;
+    color: var(--text-secondary);
+    text-align: center;
+    padding: 1.5rem;
+    background: rgba(254, 247, 230, 0.05);
+    border-radius: 8px;
+    border: 1px dashed rgba(230, 126, 34, 0.3);
+  }
+
+  .comment {
+    padding: 1rem;
+    background: rgba(254, 247, 230, 0.05);
+    border-radius: 8px;
+    border-left: 3px solid var(--primary-color);
+    margin-bottom: 1rem;
+    transition: opacity 0.3s ease;
+  }
+
+  .comment:last-child {
+    margin-bottom: 0;
+  }
+
+  .comment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.75rem;
+  }
+
+  .user-info {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .comment-date {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+  }
+
+  .comment-content {
+    color: var(--text-main);
+    font-size: 0.95rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .comment-form {
+    padding: 1rem;
+    border-top: 1px solid rgba(230, 126, 34, 0.2);
+  }
+
+  .comment-form h4 {
+    margin: 0 0 1rem 0;
+    font-size: 1rem;
+    color: var(--text-main);
+  }
+
+  .form-group {
+    margin-bottom: 0.75rem;
+  }
+
+  .form-group input,
+  .form-group textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid rgba(230, 126, 34, 0.3);
+    border-radius: 8px;
+    background: rgba(254, 247, 230, 0.05);
+    color: var(--text-main);
+    font-size: 0.95rem;
+    font-family: var(--font-family-main);
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    letter-spacing: 0.03em;
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    box-shadow: 0 2px 5px rgba(139, 69, 19, 0.1);
+  }
+
+  .form-group input:focus,
+  .form-group textarea:focus {
+    border-color: var(--primary-color);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(230, 126, 34, 0.2), 0 2px 8px rgba(230, 126, 34, 0.2);
+  }
+
+  .form-group textarea {
+    resize: vertical;
+    min-height: 100px;
+    line-height: 1.5;
+  }
+
+  .comment-submit-btn {
+    background-color: var(--primary-color);
+    color: var(--warm-light);
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: var(--font-family-main);
+    transition: all 0.3s ease;
+    font-size: 0.95rem;
+    align-self: flex-start;
+    letter-spacing: 0.03em;
+    box-shadow: 0 2px 5px rgba(139, 69, 19, 0.2);
+    text-transform: uppercase;
+  }
+
+  .comment-submit-btn:hover {
+    background-color: var(--accent-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(139, 69, 19, 0.3);
+  }
+
+  .comment-submit-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 3px rgba(139, 69, 19, 0.2);
+  }
+
+  /* Modo oscuro */
+  :root.theme-dark .comments-panel,
+  :root.theme-dark .comment,
+  :root.theme-dark .no-comments {
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+
+  :root.theme-dark .comment-toggle-btn {
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+
+  :root.theme-dark .comment-toggle-btn:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+
+  :root.theme-dark .form-group input,
+  :root.theme-dark .form-group textarea {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  }
+
+  :root.theme-dark .form-group input:focus,
+  :root.theme-dark .form-group textarea:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(255, 140, 66, 0.3), 0 2px 8px rgba(255, 140, 66, 0.2);
+  }
+
+  :root.theme-dark .comment-submit-btn {
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+  }
+
+  :root.theme-dark .comment-submit-btn:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+  }
+
+  @media (max-width: 600px) {
+    .comment-form {
+      padding: 0.75rem;
+    }
+    
+    .comments-list {
+      padding: 0.75rem;
+    }
+    
+    .comment-submit-btn {
+      width: 100%;
+      padding: 0.6rem;
+    }
   }
 </style> 
