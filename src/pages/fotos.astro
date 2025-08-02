@@ -25,13 +25,15 @@ import { ViewTransitions } from 'astro:transitions';
           transition:name={`gallery-item-${photo.id}`}
         >
           <div class="image-container" transition:name={`photo-container-${photo.id}`}>
-            <img 
-              src={photo.url} 
-              alt={photo.title} 
-              loading="lazy"
-              class="gallery-image"
+          <img 
+            src={photo.url} 
+            alt={photo.title} 
+            loading="lazy"
+            class="gallery-image"
               transition:name={`photo-${photo.id}`}
-            />
+              width="300"
+              height="200"
+          />
           </div>
           <div class="gallery-overlay">
             <h3 transition:name={`photo-title-${photo.id}`}>{photo.title}</h3>
@@ -103,6 +105,13 @@ import { ViewTransitions } from 'astro:transitions';
     
     // Configurar los enlaces para trabajar con View Transitions
     setupGalleryLinks();
+
+    // Forzar que todas las imágenes sean visibles inmediatamente en móviles
+    if (window.innerWidth <= 600) {
+    document.querySelectorAll('.gallery-item').forEach(item => {
+        item.classList.add('visible');
+      });
+    }
   }
   
   // Usar IntersectionObserver para animación de entrada al viewport
@@ -110,8 +119,8 @@ import { ViewTransitions } from 'astro:transitions';
     if ('IntersectionObserver' in window) {
       const galleryItems = document.querySelectorAll('.gallery-item');
       const appearOptions = {
-        threshold: 0.15,
-        rootMargin: '0px 0px 100px 0px'
+        threshold: 0.1,
+        rootMargin: '0px 0px 50px 0px'
       };
       
       const appearOnScroll = new IntersectionObserver((entries, observer) => {
@@ -120,7 +129,7 @@ import { ViewTransitions } from 'astro:transitions';
             // Añadir retardo escalonado para efecto de cascada
             setTimeout(() => {
               entry.target.classList.add('visible');
-            }, index * 100);
+            }, index * 50);
             
             observer.unobserve(entry.target);
           }
@@ -130,7 +139,7 @@ import { ViewTransitions } from 'astro:transitions';
       galleryItems.forEach(item => {
         appearOnScroll.observe(item);
       });
-    } else {
+      } else {
       // Fallback para navegadores sin IntersectionObserver
       document.querySelectorAll('.gallery-item').forEach(item => {
         item.classList.add('visible');
@@ -149,7 +158,7 @@ import { ViewTransitions } from 'astro:transitions';
           item.style.display = '';
           
           // Animar entrada con retardo
-          setTimeout(() => {
+        setTimeout(() => {
             item.classList.add('visible');
           }, 10);
         } else {
@@ -157,9 +166,9 @@ import { ViewTransitions } from 'astro:transitions';
           item.classList.remove('visible');
           
           // Ocultar después de la transición
-          setTimeout(() => {
+              setTimeout(() => {
             item.style.display = 'none';
-          }, 500); // Debe coincidir con la duración de la transición CSS
+          }, 300); // Debe coincidir con la duración de la transición CSS
         }
       });
     });
@@ -206,7 +215,7 @@ import { ViewTransitions } from 'astro:transitions';
   // Eventos Astro
   document.addEventListener('astro:page-load', () => {
     console.log('Página de galería cargada');
-    initializePhotoGallery();
+                  initializePhotoGallery();
     
     // Si venimos de una página de detalle, restaurar posición
     if (document.referrer.includes('/fotos/')) {
@@ -258,7 +267,7 @@ import { ViewTransitions } from 'astro:transitions';
 
   .gallery-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 1.5rem;
     margin-bottom: 3rem;
   }
@@ -269,7 +278,7 @@ import { ViewTransitions } from 'astro:transitions';
     overflow: hidden;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
     cursor: pointer;
-    height: 200px;
+    height: 220px;
     transition: transform 0.5s ease, opacity 0.5s ease, box-shadow 0.5s ease;
     opacity: 0;
     transform: translateY(20px);
@@ -298,14 +307,19 @@ import { ViewTransitions } from 'astro:transitions';
     position: relative;
     transform-origin: center;
     will-change: transform;
+    background-color: #f2f2f2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
-  
+
   .gallery-image {
     width: 100%;
     height: 100%;
     object-fit: cover;
     transition: transform 0.5s ease;
     transform-origin: center;
+    display: block;
   }
 
   .gallery-item:hover .gallery-image {
@@ -320,7 +334,7 @@ import { ViewTransitions } from 'astro:transitions';
     background: linear-gradient(to top, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0));
     color: white;
     padding: 1.5rem 1rem 1rem;
-    transform: translateY(70%);
+    transform: translateY(65%);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     display: flex;
     flex-direction: column;
@@ -369,7 +383,7 @@ import { ViewTransitions } from 'astro:transitions';
   /* Responsive */
   @media (max-width: 900px) {
     .gallery-grid {
-      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
     }
     
     .container {
@@ -384,7 +398,9 @@ import { ViewTransitions } from 'astro:transitions';
     }
     
     .gallery-item {
-      height: 150px;
+      height: 160px;
+      opacity: 1;
+      transform: none;
     }
     
     .gallery-overlay {
@@ -393,34 +409,34 @@ import { ViewTransitions } from 'astro:transitions';
     }
     
     .gallery-overlay h3 {
-      font-size: 1rem;
+    font-size: 0.9rem;
       margin-bottom: 0.25rem;
     }
     
     .gallery-overlay p {
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       -webkit-line-clamp: 2;
       margin-bottom: 0.5rem;
     }
     
     .filter-btn {
       padding: 0.4rem 0.8rem;
-      font-size: 0.8rem;
+    font-size: 0.75rem;
     }
     
     .container {
-      padding: 1rem;
+    padding: 1rem;
     }
   }
 
   @media (max-width: 480px) {
     .gallery-grid {
-      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
       gap: 0.5rem;
     }
     
     .gallery-item {
-      height: 140px;
+      height: 130px;
     }
     
     .filter-container {
@@ -472,4 +488,4 @@ import { ViewTransitions } from 'astro:transitions';
     from { opacity: 1; }
     to { opacity: 0; }
   }
-</style>
+</style> 

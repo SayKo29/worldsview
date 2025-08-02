@@ -48,7 +48,7 @@ export default function Header({ current = '' }) {
           width: 100%;
           backdrop-filter: blur(20px) saturate(180%);
           -webkit-backdrop-filter: blur(20px) saturate(180%);
-          border-radius: 16px;
+          border-radius: 0 0 16px 16px;
           transition: background 0.3s ease, border 0.3s ease, box-shadow 0.3s ease;
         }
         

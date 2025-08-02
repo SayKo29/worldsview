@@ -16,7 +16,7 @@ const socialUrl = Astro.site.href + 'assets/social.png'
 <!-- Global Metadata -->
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width" />
-<link rel="icon" type="image/x-icon" href="/favicon.ico" />
+<link rel="icon" type="image/jpeg" href="/favicon.jpg" />
 
 <!-- Primary Meta Tags -->
 <title>{title}</title>
@@ -41,14 +41,19 @@ const socialUrl = Astro.site.href + 'assets/social.png'
 
 <!-- This is intentionally inlined to avoid FOUC -->
 <script is:inline>
-  const root = document.documentElement
-  const theme = localStorage.getItem('theme')
+  const root = document.documentElement;
+  const theme = localStorage.getItem('theme');
   if (
     theme === 'dark' ||
     (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)
   ) {
-    root.classList.add('theme-dark')
+    root.classList.add('theme-dark');
+    root.setAttribute('data-theme', 'dark');
+    document.body.style.colorScheme = 'dark';
   } else {
-    root.classList.remove('theme-dark')
+    root.classList.remove('theme-dark');
+    root.classList.add('theme-light');
+    root.setAttribute('data-theme', 'light');
+    document.body.style.colorScheme = 'light';
   }
 </script>
