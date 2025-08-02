@@ -52,7 +52,7 @@ export const photos: Photo[] = [
   {
     id: 5,
     filename: 'DSC07104-01.jpeg',
-    title: 'Texturas Naturales',
+    title: 'olas',
     description: 'Patrones orgánicos que la naturaleza crea, recordándonos la belleza en los pequeños detalles.',
     date: '2025-05-28',
     category: 'naturaleza',
