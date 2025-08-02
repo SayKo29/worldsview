@@ -206,7 +206,7 @@ export default function Comments({ pagePath, resourceId, resourceType = 'post' }
         </div>
       )}
 
-      <style jsx>{`
+      <style jsx="true">{`
         .comments-container {
           margin-top: 3rem;
           padding-top: 2rem;

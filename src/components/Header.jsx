@@ -7,24 +7,31 @@ export default function Header({ current = '' }) {
   
   // Detectar el tema actual y actualizarlo cuando cambie
   React.useEffect(() => {
-    const detectTheme = () => {
-      const isDark = document.documentElement.classList.contains('theme-dark');
-      setTheme(isDark ? 'dark' : 'light');
-    };
-    
-    // Detectar tema inicial
-    detectTheme();
-    
-    // Escuchar cambios de tema
-    const handleThemeChange = () => {
-      detectTheme();
-    };
-    
-    document.addEventListener('themeChange', handleThemeChange);
-    
-    return () => {
-      document.removeEventListener('themeChange', handleThemeChange);
-    };
+    // Importar ThemeHandler dinámicamente para evitar errores de SSR
+    import('../scripts/theme-handler').then((module) => {
+      const ThemeHandler = module.default;
+      
+      // Función para detectar el tema actual
+      const updateTheme = () => {
+        const currentTheme = ThemeHandler.getTheme();
+        setTheme(currentTheme);
+      };
+      
+      // Detectar tema inicial
+      updateTheme();
+      
+      // Escuchar cambios en el tema
+      const handleThemeChange = () => {
+        updateTheme();
+      };
+      
+      // Suscribirse a eventos de cambio de tema
+      window.addEventListener('themechange', handleThemeChange);
+      
+      return () => {
+        window.removeEventListener('themechange', handleThemeChange);
+      };
+    });
   }, []);
   
   return (
@@ -32,7 +39,7 @@ export default function Header({ current = '' }) {
       <Logo />
       <Nav current={current} />
       
-      <style jsx>{`
+      <style jsx="true">{`
         header {
           display: flex;
           margin: 0 auto;

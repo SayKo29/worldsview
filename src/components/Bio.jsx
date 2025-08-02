@@ -3,7 +3,7 @@ import React from 'react';
 export default function Bio() {
   return (
     <div>
-      <style jsx>{`
+      <style jsx="true">{`
         div {
           align-items: center;
           display: flex;

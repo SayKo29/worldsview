@@ -2,18 +2,27 @@
 ---
 
 <script>
-  // Esta clase maneja el enrutamiento del lado del cliente para las View Transitions
+  /**
+   * Router del lado del cliente para gestionar las View Transitions
+   * con manejo óptimo de eventos asíncronos
+   */
   class ClientRouter {
     constructor() {
+      // Referencias para limpiar los event listeners
+      this.eventHandlers = {};
+      
       this.setupEventListeners();
       console.log('Cliente router para View Transitions inicializado');
     }
 
     setupEventListeners() {
-      // Interceptar clics en enlaces
-      document.addEventListener('click', (event) => this.handleLinkClick(event));
+      // Guardar referencias a los manejadores de eventos para poder limpiarlos
+      this.eventHandlers.clickHandler = this.handleLinkClick.bind(this);
       
-      // Eventos de transición de View Transitions API
+      // Usar opciones de eventos pasivas donde sea posible para mejorar rendimiento
+      document.addEventListener('click', this.eventHandlers.clickHandler, { passive: false });
+      
+      // No retornar promesas en event listeners
       document.addEventListener('astro:page-load', () => {
         console.log('Página cargada completamente');
       });
@@ -32,65 +41,95 @@
       
       document.addEventListener('astro:after-swap', () => {
         console.log('Contenido intercambiado');
-        // Resaltar los elementos que han cambiado brevemente
-        document.querySelectorAll('[data-astro-transition-persist=""]').forEach(el => {
-          el.classList.add('persisted');
+        this.highlightPersistedElements();
+      });
+    }
+    
+    // Método separado para marcar elementos persistentes
+    highlightPersistedElements() {
+      const persistedElements = document.querySelectorAll('[data-astro-transition-persist=""]');
+      
+      persistedElements.forEach(el => {
+        el.classList.add('persisted');
+        // Usar requestAnimationFrame para optimizar
+        requestAnimationFrame(() => {
           setTimeout(() => {
             el.classList.remove('persisted');
           }, 500);
         });
       });
-      
-      document.addEventListener('astro:page-transition', () => {
-        console.log('Transición de página en curso');
-      });
     }
 
     handleLinkClick(event) {
+      // Verificar si el evento y el target son válidos
+      if (!event || !event.target) return;
+      
       // Solo procesar clics en enlaces internos
       const link = event.target.closest('a');
       if (!link || !this.isInternalLink(link)) return;
       
-      // En enlaces internos, añadir información de transición
-      const targetUrl = new URL(link.href);
-      const currentUrl = new URL(window.location.href);
-      
-      // Si estamos navegando entre fotos, usar transición específica para fotos
-      if (targetUrl.pathname.startsWith('/fotos/') && currentUrl.pathname.startsWith('/fotos/')) {
-        console.log('Transición entre fotos detectada');
+      // Procesamiento de la dirección de transición
+      try {
+        const targetUrl = new URL(link.href);
+        const currentUrl = new URL(window.location.href);
         
-        // Identificar si vamos adelante o atrás en la galería
-        const currentId = this.extractPhotoId(currentUrl.pathname);
-        const targetId = this.extractPhotoId(targetUrl.pathname);
-        
-        if (currentId && targetId) {
-          const direction = parseInt(targetId) > parseInt(currentId) ? 'next' : 'prev';
-          document.documentElement.setAttribute('data-transition-direction', direction);
+        // Manejar transiciones entre fotos
+        if (targetUrl.pathname.startsWith('/fotos/') && currentUrl.pathname.startsWith('/fotos/')) {
+          const currentId = this.extractPhotoId(currentUrl.pathname);
+          const targetId = this.extractPhotoId(targetUrl.pathname);
+          
+          if (currentId && targetId) {
+            const direction = parseInt(targetId) > parseInt(currentId) ? 'next' : 'prev';
+            document.documentElement.setAttribute('data-transition-direction', direction);
+          }
+        } 
+        // Transición de galería a detalle
+        else if (targetUrl.pathname.startsWith('/fotos/') && currentUrl.pathname === '/fotos') {
+          document.documentElement.setAttribute('data-transition-direction', 'zoom-in');
+        } 
+        // Transición de detalle a galería
+        else if (targetUrl.pathname === '/fotos' && currentUrl.pathname.startsWith('/fotos/')) {
+          document.documentElement.setAttribute('data-transition-direction', 'zoom-out');
         }
+      } catch (e) {
+        console.error('Error procesando enlace:', e);
       }
     }
     
     extractPhotoId(pathname) {
-      // Extraer ID de la foto de la URL
       const match = pathname.match(/\/fotos\/(\d+)/);
       return match ? match[1] : null;
     }
 
     isInternalLink(link) {
-      // Comprobar si el enlace es interno (mismo dominio)
       try {
+        // Evitar generar URLs inválidas
+        if (!link || typeof link.href !== 'string') return false;
+        
         const url = new URL(link.href);
         return url.origin === window.location.origin;
       } catch (e) {
         return false;
       }
     }
+    
+    // Método para limpiar eventos cuando sea necesario
+    cleanup() {
+      document.removeEventListener('click', this.eventHandlers.clickHandler);
+      // Limpiar otros listeners si es necesario
+    }
   }
 
-  // Inicializar el router cuando el DOM esté listo
+  // Inicializar el router cuando el DOM esté listo, evitando múltiples instancias
+  let router;
   document.addEventListener('astro:page-load', () => {
-    new ClientRouter();
-  }, { once: true });
+    // Limpiar instancia previa si existe
+    if (router) {
+      router.cleanup();
+    }
+    // Crear nueva instancia
+    router = new ClientRouter();
+  }, { once: false });
 </script>
 
 <style is:global>
@@ -121,23 +160,56 @@
     animation: 300ms cubic-bezier(0.4, 0, 0.2, 1) both slide-in-left;
   }
   
+  /* Transiciones para zoom */
+  html[data-transition-direction="zoom-in"] ::view-transition-old(root) {
+    animation: 300ms cubic-bezier(0.4, 0, 0.2, 1) both fade-out;
+  }
+  
+  html[data-transition-direction="zoom-in"] ::view-transition-new(root) {
+    animation: 300ms cubic-bezier(0.4, 0, 0.2, 1) both zoom-in;
+  }
+  
+  html[data-transition-direction="zoom-out"] ::view-transition-old(root) {
+    animation: 300ms cubic-bezier(0.4, 0, 0.2, 1) both fade-out;
+  }
+  
+  html[data-transition-direction="zoom-out"] ::view-transition-new(root) {
+    animation: 300ms cubic-bezier(0.4, 0, 0.2, 1) both zoom-out;
+  }
+  
+  /* Animaciones base */
   @keyframes slide-in-right {
-    from { transform: translateX(100%); }
-    to { transform: translateX(0); }
+    from { transform: translateX(100%); opacity: 0.7; }
+    to { transform: translateX(0); opacity: 1; }
   }
   
   @keyframes slide-out-left {
-    from { transform: translateX(0); }
-    to { transform: translateX(-100%); }
+    from { transform: translateX(0); opacity: 1; }
+    to { transform: translateX(-100%); opacity: 0.7; }
   }
   
   @keyframes slide-in-left {
-    from { transform: translateX(-100%); }
-    to { transform: translateX(0); }
+    from { transform: translateX(-100%); opacity: 0.7; }
+    to { transform: translateX(0); opacity: 1; }
   }
   
   @keyframes slide-out-right {
-    from { transform: translateX(0); }
-    to { transform: translateX(100%); }
+    from { transform: translateX(0); opacity: 1; }
+    to { transform: translateX(100%); opacity: 0.7; }
+  }
+  
+  @keyframes fade-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+  
+  @keyframes zoom-in {
+    from { transform: scale(0.95); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+  
+  @keyframes zoom-out {
+    from { transform: scale(1.05); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
   }
 </style>

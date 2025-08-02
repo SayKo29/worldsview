@@ -9,7 +9,7 @@ export default function ExpandableComments({ pagePath, resourceId, resourceType 
   const [error, setError] = useState(null);
   const [expanded, setExpanded] = useState(false);
   const [commentCount, setCommentCount] = useState(0);
-  const [theme, setTheme] = useState('');
+  const [theme, setTheme] = useState('light');
   const subscriptionRef = useRef(null);
   
   useEffect(() => {
@@ -32,12 +32,12 @@ export default function ExpandableComments({ pagePath, resourceId, resourceType 
     // Detectar el tema inicial
     detectTheme();
 
-    // Escuchar cambios en el tema
-    const themeChangeHandler = (event) => {
-      setTheme(event.detail?.theme || (document.documentElement.classList.contains('theme-dark') ? 'dark' : 'light'));
+    // Escuchar cambios en el tema usando el nuevo evento themechange
+    const themeChangeHandler = () => {
+      detectTheme();
     };
 
-    document.addEventListener('themeChange', themeChangeHandler);
+    document.documentElement.addEventListener('themechange', themeChangeHandler);
     
     // Cargar comentarios inmediatamente
     loadComments();
@@ -52,7 +52,7 @@ export default function ExpandableComments({ pagePath, resourceId, resourceType 
     
     return () => {
       clearTimeout(timer);
-      document.removeEventListener('themeChange', themeChangeHandler);
+      document.documentElement.removeEventListener('themechange', themeChangeHandler);
       if (subscriptionRef.current) {
         subscriptionRef.current.unsubscribe();
       }
@@ -371,13 +371,12 @@ export default function ExpandableComments({ pagePath, resourceId, resourceType 
         </div>
       )}
 
-      <style jsx>{`
+      <style jsx="true">{`
         .comments-container {
           position: relative;
           margin-top: 0.5rem;
         }
-        
-        .comment-trigger {
+                .comment-trigger {
           position: relative;
           display: inline-block;
           z-index: 2;

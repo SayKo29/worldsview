@@ -2,7 +2,6 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { photos, categories } from '../data/photos';
 import { ViewTransitions } from 'astro:transitions';
-import OptimizedImage from '../components/OptimizedImage.jsx';
 ---
 
 <BaseLayout title="Fotos" current="fotos">
@@ -25,14 +24,15 @@ import OptimizedImage from '../components/OptimizedImage.jsx';
           data-astro-prefetch
           transition:name={`gallery-item-${photo.id}`}
         >
-          <OptimizedImage
-            src={photo.url} 
-            alt={photo.title} 
-            className="gallery-image"
-            loadingMode="lazy"
-            transitionName={`photo-${photo.id}`}
-            client:visible
-          />
+          <div class="image-container" transition:name={`photo-container-${photo.id}`}>
+            <img 
+              src={photo.url} 
+              alt={photo.title} 
+              loading="lazy"
+              class="gallery-image"
+              transition:name={`photo-${photo.id}`}
+            />
+          </div>
           <div class="gallery-overlay">
             <h3 transition:name={`photo-title-${photo.id}`}>{photo.title}</h3>
             <p>{photo.description}</p>
@@ -108,164 +108,109 @@ import OptimizedImage from '../components/OptimizedImage.jsx';
   // Usar IntersectionObserver para animación de entrada al viewport
   function setupLazyLoad() {
     if ('IntersectionObserver' in window) {
-      const options = {
-        root: null,
-        rootMargin: '0px',
-        threshold: 0.1
+      const galleryItems = document.querySelectorAll('.gallery-item');
+      const appearOptions = {
+        threshold: 0.15,
+        rootMargin: '0px 0px 100px 0px'
       };
       
-      const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
+      const appearOnScroll = new IntersectionObserver((entries, observer) => {
+        entries.forEach((entry, index) => {
           if (entry.isIntersecting) {
-            const item = entry.target;
-            // Añadir clase visible con un pequeño retraso escalonado
+            // Añadir retardo escalonado para efecto de cascada
             setTimeout(() => {
-              item.classList.add('visible');
-            }, Math.random() * 100);
-            observer.unobserve(item);
+              entry.target.classList.add('visible');
+            }, index * 100);
+            
+            observer.unobserve(entry.target);
           }
         });
-      }, options);
+      }, appearOptions);
       
-      // Observar cada elemento de la galería
-      document.querySelectorAll('.gallery-item').forEach(item => {
-        observer.observe(item);
+      galleryItems.forEach(item => {
+        appearOnScroll.observe(item);
       });
     } else {
       // Fallback para navegadores sin IntersectionObserver
-      document.querySelectorAll('.gallery-item').forEach((item, index) => {
-        setTimeout(() => {
-          item.classList.add('visible');
-        }, 30 * index);
+      document.querySelectorAll('.gallery-item').forEach(item => {
+        item.classList.add('visible');
       });
     }
   }
   
-  // Filtrado optimizado de elementos de la galería
+  // Filtrar elementos de la galería por categoría
   function filterGalleryItems(category) {
-    // Batch DOM operations for better performance
+    if (!galleryItems) return;
+    
+    // Usar animationFrame para mejor rendimiento
     requestAnimationFrame(() => {
-      const items = document.querySelectorAll('.gallery-item');
-      const fragment = document.createDocumentFragment();
-      const container = document.querySelector('.gallery-grid');
-      const itemsToShow = [];
-      const itemsToHide = [];
-      
-      items.forEach(item => {
-        const itemCategory = item.getAttribute('data-category');
-        if (category === 'all' || itemCategory === category) {
-          itemsToShow.push(item);
+      galleryItems.forEach(item => {
+        if (category === 'all' || item.dataset.category === category) {
+          item.style.display = '';
+          
+          // Animar entrada con retardo
+          setTimeout(() => {
+            item.classList.add('visible');
+          }, 10);
         } else {
-          itemsToHide.push(item);
+          // Animar salida y luego ocultar
+          item.classList.remove('visible');
+          
+          // Ocultar después de la transición
+          setTimeout(() => {
+            item.style.display = 'none';
+          }, 500); // Debe coincidir con la duración de la transición CSS
         }
-      });
-      
-      // Primero ocultar elementos no coincidentes
-      itemsToHide.forEach(item => {
-        item.classList.remove('visible');
-        // Usar opacity para mejor rendimiento que display:none
-        item.style.opacity = '0';
-        item.style.pointerEvents = 'none';
-        item.style.position = 'absolute';
-        item.style.transform = 'scale(0.8)';
-      });
-      
-      // Luego mostrar elementos coincidentes con animación escalonada
-      itemsToShow.forEach((item, i) => {
-        // Restaurar visibilidad
-        item.style.opacity = '';
-        item.style.pointerEvents = '';
-        item.style.position = '';
-        item.style.transform = '';
-        
-        // Animar con retraso escalonado
-        setTimeout(() => {
-          item.classList.add('visible');
-        }, i * 30); // Tiempo más corto para mejor rendimiento
       });
     });
   }
   
-  // Configurar los enlaces para trabajar con View Transitions
+  // Configurar enlaces para View Transitions
   function setupGalleryLinks() {
-    // Usar delegación de eventos para mejor rendimiento
-    const galleryGrid = document.querySelector('.gallery-grid');
-    if (galleryGrid) {
-      galleryGrid.addEventListener('click', (e) => {
-        const item = e.target.closest('.gallery-item');
-        if (!item) return;
-        
-        // Marcar como seleccionado para transición
-        document.querySelectorAll('.gallery-item').forEach(el => {
-          el.removeAttribute('data-selected');
-        });
-        item.setAttribute('data-selected', 'true');
-        
-        // Guardar el ID en sessionStorage para recuperarlo al volver
-        const href = item.getAttribute('href');
-        const id = href.split('/').pop();
+    document.querySelectorAll('.gallery-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        // Añadir datos para recuperar posición al volver
         try {
-          sessionStorage.setItem('last-viewed-photo', id);
-        } catch (e) {
-          console.error('Error al guardar en sessionStorage:', e);
+          sessionStorage.setItem('lastViewedPhoto', item.getAttribute('href').split('/').pop());
+          sessionStorage.setItem('scrollPosition', window.scrollY);
+        } catch (err) {
+          console.error('Error guardando estado:', err);
         }
       });
-    }
+    });
   }
   
-  // Inicialización eficiente usando requestIdleCallback si está disponible
-  function safeInitialize() {
-    if ('requestIdleCallback' in window) {
-      requestIdleCallback(() => initializePhotoGallery(), { timeout: 1000 });
-    } else {
-      setTimeout(initializePhotoGallery, 10);
-    }
-  }
-  
-  // Eventos de carga optimizados
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', safeInitialize);
-  } else {
-    safeInitialize();
-  }
-  
-  // Reinicializar cuando se navegue con View Transitions API
-  document.addEventListener('astro:page-load', safeInitialize);
-  
-  // Detectar cuando volvemos de una página de detalle - optimizado
-  document.addEventListener('astro:after-swap', () => {
-    // Comprobar si estamos en la página de la galería
-    if (window.location.pathname === '/fotos/' || window.location.pathname === '/fotos') {
-      try {
-        // Recuperar ID guardado en sessionStorage (más eficiente que document.referrer)
-        const lastViewedId = sessionStorage.getItem('last-viewed-photo');
-        if (lastViewedId) {
-          const selector = `.gallery-item[href="/fotos/${lastViewedId}"]`;
-          
-          // Usar requestAnimationFrame para operaciones visuales
-          requestAnimationFrame(() => {
-            const item = document.querySelector(selector);
-            if (item) {
-              // Hacer scroll suave al elemento
-              setTimeout(() => {
-                item.scrollIntoView({ 
-                  behavior: 'smooth', 
-                  block: 'center',
-                  inline: 'center'
-                });
-                
-                // Destacar brevemente
-                item.classList.add('highlight');
-                setTimeout(() => {
-                  item.classList.remove('highlight');
-                }, 1500);
-              }, 200);
-            }
-          });
+  // Restaurar posición de desplazamiento cuando se vuelve a la galería
+  function restoreScrollPosition() {
+    try {
+      const scrollY = sessionStorage.getItem('scrollPosition');
+      const lastPhoto = sessionStorage.getItem('lastViewedPhoto');
+      
+      if (scrollY && lastPhoto) {
+        window.scrollTo(0, parseInt(scrollY, 10));
+        
+        // Opcional: resaltar la última foto vista
+        const lastPhotoElement = document.querySelector(`a[href="/fotos/${lastPhoto}"]`);
+        if (lastPhotoElement) {
+          lastPhotoElement.classList.add('highlight');
+          setTimeout(() => {
+            lastPhotoElement.classList.remove('highlight');
+          }, 2000);
         }
-      } catch (e) {
-        console.error('Error al recuperar foto vista previamente:', e);
       }
+    } catch (err) {
+      console.error('Error restaurando posición:', err);
+    }
+  }
+  
+  // Eventos Astro
+  document.addEventListener('astro:page-load', () => {
+    console.log('Página de galería cargada');
+    initializePhotoGallery();
+    
+    // Si venimos de una página de detalle, restaurar posición
+    if (document.referrer.includes('/fotos/')) {
+      restoreScrollPosition();
     }
   });
 </script>
@@ -274,28 +219,27 @@ import OptimizedImage from '../components/OptimizedImage.jsx';
   .container {
     max-width: 1200px;
     margin: 0 auto;
-    padding: 0 1rem;
+    padding: 2rem;
   }
 
   h1 {
     text-align: center;
     margin-bottom: 2rem;
-    color: var(--text-main, #333);
   }
 
   .filter-container {
     display: flex;
     flex-wrap: wrap;
+    gap: 0.5rem;
     justify-content: center;
     margin-bottom: 2rem;
-    gap: 0.5rem;
   }
 
   .filter-btn {
-    background: none;
-    border: 1px solid var(--border-color, #ddd);
     padding: 0.5rem 1rem;
-    border-radius: 20px;
+    border-radius: 30px;
+    border: 1px solid rgba(230, 126, 34, 0.3);
+    background-color: rgba(255, 255, 255, 0.1);
     cursor: pointer;
     transition: all 0.3s ease;
     font-size: 0.9rem;
@@ -325,7 +269,7 @@ import OptimizedImage from '../components/OptimizedImage.jsx';
     overflow: hidden;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
     cursor: pointer;
-    aspect-ratio: 3/2;
+    height: 200px;
     transition: transform 0.5s ease, opacity 0.5s ease, box-shadow 0.5s ease;
     opacity: 0;
     transform: translateY(20px);
@@ -346,19 +290,26 @@ import OptimizedImage from '../components/OptimizedImage.jsx';
     z-index: 2;
   }
 
+  .image-container {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    border-radius: inherit;
+    position: relative;
+    transform-origin: center;
+    will-change: transform;
+  }
+  
   .gallery-image {
-    transition: all 0.5s ease;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.5s ease;
+    transform-origin: center;
   }
 
   .gallery-item:hover .gallery-image {
     transform: scale(1.05);
-  }
-  
-  /* Estilos para contenedor de OptimizedImage */
-  .optimized-image-container {
-    border-radius: inherit;
-    transform-origin: center;
-    transition: transform 0.5s ease;
   }
 
   .gallery-overlay {
@@ -369,11 +320,11 @@ import OptimizedImage from '../components/OptimizedImage.jsx';
     background: linear-gradient(to top, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0));
     color: white;
     padding: 1.5rem 1rem 1rem;
-    transform: translateY(100%);
+    transform: translateY(70%);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     display: flex;
     flex-direction: column;
-    will-change: transform;
+    z-index: 2;
   }
 
   .gallery-item:hover .gallery-overlay {
@@ -410,22 +361,106 @@ import OptimizedImage from '../components/OptimizedImage.jsx';
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
   }
 
-  /* View Transitions animations */
-  ::view-transition-old(root) {
-    animation: 300ms cubic-bezier(0.4, 0, 0.2, 1) both fade-out;
+  .gallery-item.highlight {
+    box-shadow: 0 0 0 3px var(--primary-color), 0 10px 25px rgba(0, 0, 0, 0.2);
+    z-index: 3;
+  }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    .gallery-grid {
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    }
+    
+    .container {
+      padding: 1.5rem;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .gallery-grid {
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 0.75rem;
+    }
+    
+    .gallery-item {
+      height: 150px;
+    }
+    
+    .gallery-overlay {
+      padding: 1rem 0.75rem 0.75rem;
+      transform: translateY(60%);
+    }
+    
+    .gallery-overlay h3 {
+      font-size: 1rem;
+      margin-bottom: 0.25rem;
+    }
+    
+    .gallery-overlay p {
+      font-size: 0.8rem;
+      -webkit-line-clamp: 2;
+      margin-bottom: 0.5rem;
+    }
+    
+    .filter-btn {
+      padding: 0.4rem 0.8rem;
+      font-size: 0.8rem;
+    }
+    
+    .container {
+      padding: 1rem;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .gallery-grid {
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 0.5rem;
+    }
+    
+    .gallery-item {
+      height: 140px;
+    }
+    
+    .filter-container {
+      gap: 0.3rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .filter-btn {
+      padding: 0.3rem 0.6rem;
+      font-size: 0.7rem;
+    }
+    
+    .container {
+      padding: 0.75rem;
+    }
+  }
+
+  /* Animaciones View Transitions */
+  ::view-transition-group(gallery-item-*) {
+    animation-duration: 0.5s;
   }
   
-  ::view-transition-new(root) {
-    animation: 300ms cubic-bezier(0.4, 0, 0.2, 1) both fade-in;
+  ::view-transition-old(gallery-item-*) {
+    animation: 0.3s cubic-bezier(0.4, 0, 0.2, 1) both fade-out;
   }
   
-  /* Specific animations for photos */
+  ::view-transition-new(gallery-item-*) {
+    animation: 0.3s cubic-bezier(0.4, 0, 0.2, 1) both fade-in;
+  }
+  
+  ::view-transition-group(photo-*) {
+    animation-duration: 0.5s;
+  }
+  
   ::view-transition-old(photo-*) {
-    animation: 300ms cubic-bezier(0.4, 0, 0.2, 1) both fade-out;
+    animation: 0.3s cubic-bezier(0.4, 0, 0.2, 1) both fade-out;
   }
   
   ::view-transition-new(photo-*) {
-    animation: 300ms cubic-bezier(0.4, 0, 0.2, 1) both fade-in;
+    animation: 0.3s cubic-bezier(0.4, 0, 0.2, 1) both fade-in;
   }
   
   @keyframes fade-in {
@@ -437,77 +472,4 @@ import OptimizedImage from '../components/OptimizedImage.jsx';
     from { opacity: 1; }
     to { opacity: 0; }
   }
-
-  /* Responsive */
-  @media (max-width: 900px) {
-    .gallery-grid {
-      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    }
-  }
-
-  @media (max-width: 600px) {
-    .gallery-grid {
-      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-      gap: 1rem;
-    }
-    
-    .gallery-overlay h3 {
-      font-size: 1rem;
-    }
-    
-    .gallery-overlay p {
-      font-size: 0.8rem;
-      -webkit-line-clamp: 2;
-    }
-    
-    .filter-btn {
-      padding: 0.4rem 0.8rem;
-      font-size: 0.8rem;
-    }
-  }
 </style>
-
-<style is:global>
-  /* View transition overrides */
-  html::view-transition-group(*) {
-    animation-duration: 0.5s;
-  }
-  
-  html::view-transition-old(*) {
-    animation: 0.5s cubic-bezier(0.4, 0, 0.2, 1) both fade-out;
-  }
-  
-  html::view-transition-new(*) {
-    animation: 0.5s cubic-bezier(0.4, 0, 0.2, 1) both fade-in;
-  }
-  
-  @keyframes fade-in {
-    from { opacity: 0; transform: scale(0.95); }
-    to { opacity: 1; transform: scale(1); }
-  }
-  
-  @keyframes fade-out {
-    from { opacity: 1; transform: scale(1); }
-    to { opacity: 0; transform: scale(1.05); }
-  }
-  
-  /* Efecto de resaltado para cuando volvemos a la galería */
-  .gallery-item.highlight {
-    animation: highlight-pulse 1.5s ease-in-out;
-    z-index: 5;
-  }
-  
-  @keyframes highlight-pulse {
-    0% { box-shadow: 0 0 0 0 rgba(230, 126, 34, 0.8); transform: scale(1); }
-    20% { box-shadow: 0 0 0 10px rgba(230, 126, 34, 0.0); transform: scale(1.05); }
-    40% { box-shadow: 0 0 0 0 rgba(230, 126, 34, 0.0); transform: scale(1); }
-    60% { box-shadow: 0 0 0 5px rgba(230, 126, 34, 0.5); transform: scale(1.02); }
-    100% { box-shadow: 0 0 0 0 rgba(230, 126, 34, 0.0); transform: scale(1); }
-  }
-  
-  /* Estilo para elemento seleccionado */
-  .gallery-item[data-selected="true"] img {
-    outline: 3px solid var(--primary-color, #e67e22);
-    outline-offset: -3px;
-  }
-</style> 

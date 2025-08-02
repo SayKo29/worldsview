@@ -98,7 +98,7 @@ export default function Auth() {
         {loading ? 'Saliendo...' : 'Cerrar sesión'}
       </button>
 
-      <style jsx>{`
+      <style jsx="true">{`
         .auth-container {
           background: rgba(255, 255, 255, 0.05);
           border-radius: 8px;
@@ -185,7 +185,7 @@ export default function Auth() {
         </button>
       </div>
 
-      <style jsx>{`
+      <style jsx="true">{`
         .auth-container {
           background: rgba(255, 255, 255, 0.05);
           border-radius: 8px;

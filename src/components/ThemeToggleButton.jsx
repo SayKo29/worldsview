@@ -1,164 +1,204 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export default function ThemeToggleButton() {
-  // Necesitamos que theme tenga un valor por defecto para evitar un renderizado "uncontrolled"
-  const [theme, setTheme] = useState('light');
+  // Estado para el tema actual
+  const [currentTheme, setCurrentTheme] = useState('light');
   
-  // Función para detectar el tema actual del documento
-  const detectCurrentTheme = useCallback(() => {
-    // Primero verificar por clase en el elemento raíz
-    const rootEl = document.documentElement;
-    if (rootEl.classList.contains('theme-dark')) {
-      return 'dark';
-    }
-    
-    // Luego verificar localStorage
-    try {
-      const storedTheme = localStorage.getItem('theme');
-      if (storedTheme) {
-        return storedTheme;
-      }
-    } catch (e) {
-      console.error('Error accediendo a localStorage:', e);
-    }
-    
-    // Comprobar preferencia del sistema
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      return 'dark';
-    }
-    
-    // Valor por defecto
-    return 'light';
-  }, []);
-
-  // Función para aplicar el tema
-  const applyTheme = useCallback((selectedTheme) => {
-    const rootEl = document.documentElement;
-    
-    if (selectedTheme === 'light') {
-      rootEl.classList.remove('theme-dark');
-      document.body.style.colorScheme = 'light';
-    } else if (selectedTheme === 'dark') {
-      rootEl.classList.add('theme-dark');
-      document.body.style.colorScheme = 'dark';
-    }
-    
-    // Guardar en localStorage
-    try {
-      localStorage.setItem('theme', selectedTheme);
-    } catch (e) {
-      console.error('Error al guardar tema en localStorage:', e);
-    }
-    
-    // Evento personalizado para que otros componentes sepan del cambio
-    document.dispatchEvent(
-      new CustomEvent('themeChange', { detail: { theme: selectedTheme } })
-    );
-    
-    console.log(`Tema aplicado: ${selectedTheme}`);
-  }, []);
-
-  // Inicialización del tema al cargar el componente
+  // Detectar el tema inicial al cargar
   useEffect(() => {
-    const currentTheme = detectCurrentTheme();
-    console.log('Tema inicial detectado:', currentTheme);
-    
-    // Actualizar el estado local
-    setTheme(currentTheme);
-    
-    // Aplicar el tema (para asegurar que todo esté sincronizado)
-    applyTheme(currentTheme);
-    
-    // Configurar el detector de cambios de preferencia del sistema
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    
-    // Función que se ejecuta cuando cambia la preferencia del sistema
-    const handleSystemThemeChange = (e) => {
-      // Solo cambiar si no hay preferencia guardada
-      if (!localStorage.getItem('theme')) {
-        const newTheme = e.matches ? 'dark' : 'light';
-        console.log('Cambio detectado en preferencia del sistema:', newTheme);
-        setTheme(newTheme);
-        applyTheme(newTheme);
-      }
+    // Función para detectar el tema actual del documento
+    const detectTheme = () => {
+      return document.documentElement.classList.contains('theme-dark') ? 'dark' : 'light';
     };
     
-    // Suscribirse a cambios en la preferencia del sistema
-    if (mediaQuery?.addEventListener) {
-      mediaQuery.addEventListener('change', handleSystemThemeChange);
-    } else if (mediaQuery?.addListener) {
-      // Para Safari < 14
-      mediaQuery.addListener(handleSystemThemeChange);
-    }
+    // Establecer el tema inicial
+    const initialTheme = detectTheme();
+    setCurrentTheme(initialTheme);
+    console.log('Tema inicial detectado:', initialTheme);
+    
+    // Función para manejar cambios de tema
+    const handleThemeChange = () => {
+      const newTheme = detectTheme();
+      setCurrentTheme(newTheme);
+      console.log('Tema actualizado por evento:', newTheme);
+    };
+    
+    // Escuchar eventos de cambio de tema
+    window.addEventListener('themechange', handleThemeChange);
+    document.addEventListener('astro:page-load', handleThemeChange);
     
     return () => {
-      // Limpiar el listener
-      if (mediaQuery?.removeEventListener) {
-        mediaQuery.removeEventListener('change', handleSystemThemeChange);
-      } else if (mediaQuery?.removeListener) {
-        mediaQuery.removeListener(handleSystemThemeChange);
-      }
+      window.removeEventListener('themechange', handleThemeChange);
+      document.removeEventListener('astro:page-load', handleThemeChange);
     };
-  }, [detectCurrentTheme, applyTheme]);
-
-  // Manejador del cambio de tema mediante el toggle
-  function handleThemeChange(event) {
-    const newTheme = event.target.value;
-    console.log('Usuario seleccionó tema:', newTheme);
+  }, []);
+  
+  // Manejador de clic simplificado y robusto
+  const handleClick = () => {
+    // Determinar el nuevo tema
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    console.log('Cambiando tema de', currentTheme, 'a', newTheme);
     
-    // Actualizar el estado
-    setTheme(newTheme);
-    
-    // Aplicar el tema
-    applyTheme(newTheme);
-  }
+    try {
+      // 1. Actualizar clases en documentElement
+      document.documentElement.classList.remove('theme-dark', 'theme-light');
+      document.documentElement.classList.add(`theme-${newTheme}`);
+      
+      // 2. Actualizar el data-attribute
+      document.documentElement.dataset.theme = newTheme;
+      
+      // 3. Actualizar localStorage
+      localStorage.setItem('theme', newTheme);
+      
+      // 4. Actualizar el estado local
+      setCurrentTheme(newTheme);
+      
+      // 5. Emitir evento personalizado
+      const event = new CustomEvent('themechange', {
+        detail: { theme: newTheme },
+        bubbles: true
+      });
+      window.dispatchEvent(event);
+      
+      console.log('✅ Tema cambiado exitosamente a:', newTheme);
+    } catch (error) {
+      console.error('❌ Error al cambiar el tema:', error);
+    }
+  };
 
-  // Iconos para los temas
-  const icons = [
+  return (
+    <button 
+      onClick={handleClick}
+      className={`theme-toggle ${currentTheme}`}
+      aria-label={currentTheme === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
+    >
+      <div className="toggle-track">
+        <div className="toggle-indicator">
+          {currentTheme === 'dark' ? <SunIcon /> : <MoonIcon />}
+        </div>
+      </div>
+      <span className="sr-only">
+        {currentTheme === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
+      </span>
+      
+      <style jsx="true">{`
+        .theme-toggle {
+          position: relative;
+          border: none;
+          background: none;
+          padding: 0;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          width: 54px;
+          height: 28px;
+          outline: none;
+        }
+        
+        .toggle-track {
+          width: 54px;
+          height: 28px;
+          border-radius: 30px;
+          background: linear-gradient(to right, #ff6b6b, #ffa742);
+          position: relative;
+          transition: all 0.4s cubic-bezier(.25,.75,.5,1.25);
+          box-shadow:
+            0 0 0 1px rgba(0,0,0,0.1),
+            inset 0 0 0 2px rgba(255,255,255,0.2),
+            inset 0 0 8px rgba(0,0,0,0.2),
+            0 2px 10px rgba(0,0,0,0.2);
+        }
+        
+        .theme-toggle.dark .toggle-track {
+          background: linear-gradient(to right, #2c3e50, #4b6cb7);
+          box-shadow:
+            0 0 0 1px rgba(0,0,0,0.1),
+            inset 0 0 0 2px rgba(255,255,255,0.1),
+            inset 0 0 8px rgba(0,0,0,0.5),
+            0 2px 10px rgba(0,0,0,0.2);
+        }
+        
+        .toggle-indicator {
+          position: absolute;
+          top: 2px;
+          left: 2px;
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          background: #fff;
+          transform: translateX(0);
+          transition: all 0.4s cubic-bezier(.25,.75,.5,1.25);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #ff6b6b;
+          box-shadow: 
+            0 2px 4px rgba(0,0,0,0.2),
+            0 0 2px rgba(0,0,0,0.4);
+        }
+        
+        .theme-toggle.dark .toggle-indicator {
+          transform: translateX(26px);
+          background: #192a3a;
+          color: #ffda85;
+        }
+        
+        /* Hover y focus */
+        .theme-toggle:hover .toggle-track {
+          filter: brightness(1.1);
+        }
+        
+        .theme-toggle:focus-visible {
+          outline: 2px solid var(--primary-color);
+          outline-offset: 2px;
+        }
+        
+        .sr-only {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          padding: 0;
+          margin: -1px;
+          overflow: hidden;
+          clip: rect(0, 0, 0, 0);
+          white-space: nowrap;
+          border-width: 0;
+        }
+      `}</style>
+    </button>
+  );
+}
+
+// Componente para el ícono del sol
+function SunIcon() {
+  return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      width="20"
-      height="20"
+      width="16"
+      height="16"
       viewBox="0 0 20 20"
       fill="currentColor"
-      key="light-icon"
     >
       <path
         fillRule="evenodd"
         d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"
         clipRule="evenodd"
       />
-    </svg>,
+    </svg>
+  );
+}
+
+// Componente para el ícono de la luna
+function MoonIcon() {
+  return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      width="20"
-      height="20"
+      width="16"
+      height="16"
       viewBox="0 0 20 20"
       fill="currentColor"
-      key="dark-icon"
     >
       <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
-    </svg>,
-  ];
-
-  const themes = ['light', 'dark'];
-
-  return (
-    <div className="theme-toggle">
-      {themes.map((t, i) => (
-        <label key={t} className={theme === t ? 'checked' : ''}>
-          {icons[i]}
-          <input
-            type="radio"
-            name="theme-toggle"
-            checked={theme === t}
-            value={t}
-            title={`Usar tema ${t === 'light' ? 'claro' : 'oscuro'}`}
-            aria-label={`Usar tema ${t === 'light' ? 'claro' : 'oscuro'}`}
-            onChange={handleThemeChange}
-          />
-        </label>
-      ))}
-    </div>
+    </svg>
   );
 }

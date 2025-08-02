@@ -2,47 +2,43 @@
 import BaseHead from "../components/BaseHead.astro";
 import Header from "../components/Header.jsx";
 import Footer from "../components/Footer.jsx";
-import { ViewTransitions } from "astro:transitions";
 import ClientRouter from "../components/ClientRouter.astro";
 
 const { title, description, permalink, current } = Astro.props;
 ---
 
-<html lang="es" class="no-js">
+<html lang="es">
   <head>
     <BaseHead {title} {description} {permalink} />
-    <ViewTransitions />
     <script is:inline>
-      // Script de inicialización del tema - se ejecuta antes del primer renderizado
+      /**
+       * Script de inicialización del tema para prevenir FOUC (Flash of Unstyled Content).
+       * Este script se ejecuta antes de que cargue React para aplicar el tema inmediatamente.
+       */
       (function() {
-        function getInitialTheme() {
-          // 1. Comprobar localStorage
+        try {
+          // Leer tema de localStorage
           const savedTheme = localStorage.getItem('theme');
-          if (savedTheme) {
-            return savedTheme;
+          
+          // Determinar tema usando el valor guardado o la preferencia del sistema
+          const theme = savedTheme === 'dark' || savedTheme === 'light'
+            ? savedTheme
+            : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+          
+          // Aplicar tema al HTML
+          document.documentElement.classList.remove('theme-dark', 'theme-light');
+          document.documentElement.classList.add(`theme-${theme}`);
+          document.documentElement.setAttribute('data-theme', theme);
+          
+          // Guardar el tema determinado para coherencia
+          if (theme !== savedTheme) {
+            localStorage.setItem('theme', theme);
           }
           
-          // 2. Comprobar preferencia del sistema
-          if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            return 'dark';
-          }
-          
-          // 3. Tema por defecto: light
-          return 'light';
+          console.log('[BaseLayout] Tema inicial aplicado:', theme);
+        } catch (e) {
+          console.error('[BaseLayout] Error al aplicar tema inicial:', e);
         }
-        
-        // Aplicar el tema inicial antes del primer render para evitar parpadeos
-        const theme = getInitialTheme();
-        document.documentElement.classList.remove('no-js');
-        
-        if (theme === 'dark') {
-          document.documentElement.classList.add('theme-dark');
-        } else {
-          document.documentElement.classList.remove('theme-dark');
-        }
-        
-        // Marcar que se ha inicializado el tema
-        window.themeInitialized = true;
       })();
     </script>
   </head>
@@ -72,72 +68,40 @@ const { title, description, permalink, current } = Astro.props;
 </style>
 
 <script>
-  // Este script se ejecutará en cada navegación
   document.addEventListener('astro:page-load', () => {
-    console.log('Página cargada con View Transitions');
+    console.log('[BaseLayout] Página cargada');
     
-    // Añadir clase para habilitar las animaciones después de la carga
-    document.documentElement.classList.add('view-transition-ready');
-    
-    // Re-aplicar el tema actual después de cada navegación
-    function restoreTheme() {
-      // Si hay un tema guardado en localStorage, asegurarse de que esté aplicado
-      try {
-        const savedTheme = localStorage.getItem('theme');
-        if (savedTheme) {
-          if (savedTheme === 'dark') {
-            document.documentElement.classList.add('theme-dark');
-          } else {
-            document.documentElement.classList.remove('theme-dark');
-          }
-          console.log('Tema restaurado después de navegación:', savedTheme);
-          
-          // Notificar a los componentes del tema actual
-          document.dispatchEvent(
-            new CustomEvent('themeChange', { detail: { theme: savedTheme } })
-          );
-        }
-      } catch (e) {
-        console.error('Error al restaurar tema:', e);
+    // Verificar que el tema esté correctamente aplicado
+    try {
+      const theme = localStorage.getItem('theme') || 'light';
+      const htmlHasThemeClass = document.documentElement.classList.contains(`theme-${theme}`);
+      
+      if (!htmlHasThemeClass) {
+        console.log('[BaseLayout] Reaplying theme:', theme);
+        document.documentElement.classList.remove('theme-dark', 'theme-light');
+        document.documentElement.classList.add(`theme-${theme}`);
+        document.documentElement.setAttribute('data-theme', theme);
       }
+    } catch (e) {
+      console.error('[BaseLayout] Error verificando tema:', e);
     }
     
-    // Restaurar tema después de cada navegación
-    restoreTheme();
-  });
-  
-  // Este script se ejecutará durante las transiciones de página
-  document.addEventListener('astro:after-swap', () => {
-    console.log('Contenido actualizado después de la transición');
-  });
-  
-  // Script para manejar el final de las transiciones
-  document.addEventListener('astro:after-transition', () => {
-    console.log('Transición completada');
-  });
-  
-  // Escuchar cambios de tema para sincronizar el estado global
-  document.addEventListener('themeChange', (event) => {
-    const theme = event.detail?.theme;
-    if (theme) {
-      console.log('Evento de cambio de tema detectado:', theme);
+    // Configurar header para transiciones
+    const headerElement = document.querySelector('header');
+    if (headerElement) {
+      headerElement.style.viewTransitionName = 'header';
     }
   });
 </script>
 
 <style is:global>
   /* Configuración global para View Transitions */
-  html.view-transition-ready * {
-    view-transition-name: auto;
-  }
-  
-  /* Animaciones principales */
   ::view-transition-old(root) {
-    animation: 0.5s cubic-bezier(0.4, 0, 0.2, 1) both fade-out;
+    animation: 0.3s cubic-bezier(0.4, 0, 0.2, 1) both fade-out;
   }
   
   ::view-transition-new(root) {
-    animation: 0.5s cubic-bezier(0.4, 0, 0.2, 1) both fade-in;
+    animation: 0.3s cubic-bezier(0.4, 0, 0.2, 1) both fade-in;
   }
   
   @keyframes fade-in {

@@ -5,7 +5,7 @@ export default function Logo() {
     <a href="/">
       <img alt="Blog Logo" src="/assets/logo.webp" width="75" height="50" />
       
-      <style jsx>{`
+      <style jsx="true">{`
         img {
           display: block;
           width: 75px;

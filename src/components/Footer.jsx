@@ -8,7 +8,7 @@ export default function Footer() {
         Hecho con ❤️ por Andrea Solsona
       </span>
       
-      <style jsx>{`
+      <style jsx="true">{`
         footer {
           color: var(--text-secondary);
           font-size: 1rem;
