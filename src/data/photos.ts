@@ -45,7 +45,7 @@ export const photos: Photo[] = [
     title: 'Atardecer en Silencio',
     description: 'El sol se despide pintando el cielo con tonos cálidos, creando un espectáculo de colores.',
     date: '2025-05-28',
-    category: 'naturaleza',
+    category: 'animales',
     location: 'Mirador del Ocaso',
     url: '/assets/blog-photos/DSC07099-01.jpeg'
   },
