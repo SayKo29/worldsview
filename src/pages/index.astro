@@ -1,6 +1,7 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import Bio from '../components/Bio.astro';
+import Bio from '../components/Bio.jsx';
+import Comments from '../components/Comments.jsx';
 
 const title = 'World\'s View';
 const description = 'Un blog sobre la vida y experiencias personales';
@@ -31,31 +32,7 @@ const processedPosts = allPosts.map(post => {
           <div set:html={post.compiledContent()} />
           <div class="post-item-footer">
             <div class="post-item-comments">
-              <div class="comment-wrapper" data-post-slug={slug}>
-                <button class="comment-toggle-btn">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                  </svg>
-                  <span>Comentarios</span>
-                </button>
-                <div class="comments-panel hidden">
-                  <div class="comments-list">
-                    <p class="no-comments">No hay comentarios todavía. ¡Sé el primero en comentar!</p>
-                  </div>
-                  <div class="comment-form">
-                    <h4>Deja tu comentario</h4>
-                    <form data-post-slug={slug}>
-                      <div class="form-group">
-                        <input type="text" name="author" placeholder="Tu nombre" required>
-                      </div>
-                      <div class="form-group">
-                        <textarea name="content" placeholder="Escribe tu comentario aquí..." rows="3" required></textarea>
-                      </div>
-                      <button type="submit" class="comment-submit-btn">Enviar comentario</button>
-                    </form>
-                  </div>
-                </div>
-              </div>
+              <Comments pagePath="blog" resourceId={slug} resourceType="post" client:load />
             </div>
           </div>
         </div>
@@ -70,6 +47,17 @@ const processedPosts = allPosts.map(post => {
   
   // Función para inicializar los comentarios
   function initializeComments() {
+    console.log("Inicializando sistema de comentarios...");
+    
+    // Asegurarnos de que la inicialización ocurre después de que todo el contenido esté disponible
+    setTimeout(() => {
+      setupCommentButtons();
+      setupCommentForms();
+      setupSubscriptions();
+    }, 100);
+  }
+  
+  function setupCommentButtons() {
     // Manejar la apertura y cierre de los paneles de comentarios
     document.querySelectorAll('.comment-toggle-btn').forEach(button => {
       // Eliminar eventos anteriores para evitar duplicados
@@ -119,15 +107,26 @@ const processedPosts = allPosts.map(post => {
         }
       });
     });
-    
+  }
+  
+  function setupCommentForms() {
     // Manejar el envío de comentarios
     document.querySelectorAll('.comment-form form').forEach(form => {
       // Eliminar eventos anteriores para evitar duplicados
       form.replaceWith(form.cloneNode(true));
     });
     
-    // Volver a seleccionar los formularios después de clonarlos
+    // Volver a seleccionar los formularios después de clonarlos y rellenar nombres guardados
     document.querySelectorAll('.comment-form form').forEach(form => {
+      // Rellenar el nombre guardado si existe
+      const authorInput = form.querySelector('input[name="author"]') as HTMLInputElement;
+      if (authorInput) {
+        const savedName = localStorage.getItem('commentAuthorName');
+        if (savedName) {
+          authorInput.value = savedName;
+        }
+      }
+      
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
         
@@ -176,6 +175,13 @@ const processedPosts = allPosts.map(post => {
                   const panel = wrapper.querySelector('.comments-panel') as HTMLElement;
                   if (panel && !panel.classList.contains('hidden')) {
                     panel.style.maxHeight = panel.scrollHeight + 'px';
+                  }
+                  
+                  // Actualizar el contador de comentarios
+                  const countElement = wrapper.querySelector('.comment-count');
+                  if (countElement) {
+                    const currentCount = parseInt(countElement.textContent || '0') + 1;
+                    updateCommentCount(wrapper, currentCount);
                   }
                   
                   // Limpiar el campo de comentario
@@ -235,13 +241,43 @@ const processedPosts = allPosts.map(post => {
     if (!container) return;
     
     try {
-      // Cargar comentarios desde Supabase
-      const comments = await fetchComments('blog', slug);
+      // Mostrar indicador de carga
+      container.innerHTML = '<p class="loading-comments">Cargando comentarios...</p>';
+      
+      // Cargar comentarios desde Supabase con reintentos
+      let comments;
+      let attempts = 0;
+      const maxAttempts = 3;
+      
+      while (attempts < maxAttempts) {
+        try {
+          comments = await fetchComments('blog', slug);
+          break; // Si llega aquí, se cargaron correctamente
+        } catch (error) {
+          attempts++;
+          console.error(`Error cargando comentarios (intento ${attempts}/${maxAttempts}):`, error);
+          if (attempts < maxAttempts) {
+            // Esperar antes de reintentar
+            await new Promise(resolve => setTimeout(resolve, 500));
+          } else {
+            throw error; // Propagar el error después de todos los intentos
+          }
+        }
+      }
       
       // Limpiar el contenedor
       container.innerHTML = '';
       
-      if (comments.length === 0) {
+      // Actualizar el contador de comentarios en el botón
+      const wrapper = container.closest('.comment-wrapper') as HTMLElement;
+      if (wrapper) {
+        const countElement = wrapper.querySelector('.comment-count');
+        if (countElement) {
+          countElement.textContent = comments ? comments.length.toString() : '0';
+        }
+      }
+      
+      if (!comments || comments.length === 0) {
         container.innerHTML = '<p class="no-comments">No hay comentarios todavía. ¡Sé el primero en comentar!</p>';
       } else {
         comments.forEach(comment => {
@@ -251,7 +287,6 @@ const processedPosts = allPosts.map(post => {
       }
       
       // Rellenar el campo de nombre si existe en localStorage
-      const wrapper = container.closest('.comment-wrapper') as HTMLElement;
       if (wrapper) {
         const form = wrapper.querySelector('form');
         if (form) {
@@ -273,6 +308,7 @@ const processedPosts = allPosts.map(post => {
   // Configurar suscripción a cambios en comentarios
   let subscriptions: any[] = [];
   
+  // En la función setupSubscriptions, actualizar para que actualice también el contador
   function setupSubscriptions() {
     // Limpiar suscripciones anteriores
     subscriptions.forEach(subscription => {
@@ -290,7 +326,15 @@ const processedPosts = allPosts.map(post => {
           .channel(`blog-comments-${slug}`)
           .on('postgres_changes', 
               { event: '*', schema: 'public', table: 'comments', filter: `resource_id=eq.${slug}` }, 
-              () => {
+              async () => {
+                // Actualizar contador de comentarios independientemente de si el panel está visible
+                try {
+                  const comments = await fetchComments('blog', slug);
+                  updateCommentCount(wrapper, comments.length);
+                } catch (error) {
+                  console.error(`Error actualizando contador para ${slug}:`, error);
+                }
+                
                 // Recargar comentarios si el panel está visible
                 const panel = wrapper.querySelector('.comments-panel');
                 if (panel && !panel.classList.contains('hidden')) {
@@ -304,24 +348,116 @@ const processedPosts = allPosts.map(post => {
       }
     });
   }
+
+// Función para actualizar el contador de comentarios
+function updateCommentCount(wrapper: Element, count: number) {
+  const countElement = wrapper.querySelector('.comment-count');
+  if (countElement) {
+    countElement.textContent = count.toString();
+    if (count > 0) {
+      countElement.classList.add('has-comments');
+    } else {
+      countElement.classList.remove('has-comments');
+    }
+  }
+}
+
+// Cargar inicialmente los contadores de comentarios
+async function loadAllCommentCounts() {
+  console.log("Cargando contadores de comentarios...");
   
-  // Inicializar cuando el DOM esté listo
-  document.addEventListener('DOMContentLoaded', () => {
-    initializeComments();
-    setupSubscriptions();
-  });
+  try {
+    const wrappers = Array.from(document.querySelectorAll('.comment-wrapper'));
+    
+    // Usar Promise.all para esperar todas las promesas
+    await Promise.all(wrappers.map(async (wrapper) => {
+      const slug = wrapper.getAttribute('data-post-slug');
+      const countElement = wrapper.querySelector('.comment-count');
+      
+      if (slug && countElement) {
+        try {
+          // Mostrar estado de carga
+          countElement.textContent = "...";
+          countElement.classList.add('loading');
+          
+          // Intentar cargar los comentarios con varios reintentos
+          let comments = [];
+          let attempts = 0;
+          const maxAttempts = 3;
+          
+          while (attempts < maxAttempts) {
+            try {
+              comments = await fetchComments('blog', slug);
+              break; // Salir del bucle si tiene éxito
+            } catch (error) {
+              attempts++;
+              console.error(`Error cargando conteo (intento ${attempts}/${maxAttempts}):`, error);
+              if (attempts < maxAttempts) {
+                // Esperar antes de reintentar
+                await new Promise(resolve => setTimeout(resolve, 500));
+              } else {
+                throw error; // Propagar el error después de todos los intentos
+              }
+            }
+          }
+          
+          // Actualizar el contador con el número real
+          countElement.textContent = comments.length.toString();
+          countElement.classList.remove('loading');
+          
+          // Si hay comentarios, cambiar el estilo del contador para destacarlo
+          if (comments.length > 0) {
+            countElement.classList.add('has-comments');
+          }
+          
+          console.log(`Comentarios cargados para ${slug}: ${comments.length}`);
+        } catch (error) {
+          console.error(`Error cargando conteo de comentarios para ${slug}:`, error);
+          countElement.textContent = "0"; // Valor por defecto en caso de error
+          countElement.classList.remove('loading');
+        }
+      }
+    }));
+    
+    console.log("Todos los contadores de comentarios han sido cargados");
+  } catch (error) {
+    console.error("Error al cargar los contadores de comentarios:", error);
+  }
+}
+
+// Función global para inicializar todo
+function initializeAll() {
+  console.log("Inicializando todo...");
+  initializeComments();
+  setupCommentForms();
+  setupSubscriptions();
   
-  // Reinicializar cuando se navegue con View Transitions API
-  document.addEventListener('astro:page-load', () => {
-    initializeComments();
-    setupSubscriptions();
-  });
-  
-  // Reinicializar cuando se navegue con View Transitions API (afterNavigate)
-  document.addEventListener('astro:after-swap', () => {
-    initializeComments();
-    setupSubscriptions();
-  });
+  // Cargar contadores con pequeño retraso para asegurar que el DOM esté completamente preparado
+  setTimeout(() => {
+    loadAllCommentCounts().catch(err => console.error("Error en carga de contadores:", err));
+  }, 50);
+}
+
+// Inicializar cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', () => {
+  console.log("DOM cargado, inicializando...");
+  initializeAll();
+});
+
+// Reinicializar cuando se navegue con View Transitions API
+document.addEventListener('astro:page-load', () => {
+  console.log("Astro page load, reinicializando...");
+  initializeAll();
+});
+
+// Reinicializar cuando se navegue con View Transitions API (afterNavigate)
+document.addEventListener('astro:after-swap', () => {
+  console.log("Astro after swap, reinicializando...");
+  // Pequeño retraso para asegurar que el DOM esté completamente preparado
+  setTimeout(() => {
+    initializeAll();
+  }, 100);
+});
   
   // Limpiar suscripciones al desmontar
   window.addEventListener('beforeunload', () => {
@@ -386,6 +522,64 @@ const processedPosts = allPosts.map(post => {
 
   .comment-toggle-btn:hover {
     background-color: rgba(230, 126, 34, 0.1);
+  }
+
+  .comment-count {
+    background-color: var(--primary-color);
+    color: white;
+    border-radius: 50%;
+    min-width: 20px;
+    height: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0 4px;
+    margin-left: 4px;
+    transition: transform 0.3s ease, background-color 0.3s ease;
+  }
+
+  /* Estado de carga del contador */
+  .comment-count.loading {
+    background-color: #888;
+    animation: pulse 1.5s infinite ease-in-out;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .comment-count.loading::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    animation: shimmer 1.5s infinite;
+  }
+
+  @keyframes shimmer {
+    100% {
+      left: 100%;
+    }
+  }
+
+  @keyframes pulse {
+    0% { opacity: 0.7; }
+    50% { opacity: 1; }
+    100% { opacity: 0.7; }
+  }
+
+  .comment-count.has-comments {
+    background-color: var(--accent-color, #d35400);
+    transform: scale(1.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+
+  .comment-toggle-btn:hover .comment-count {
+    transform: scale(1.1);
+    background-color: var(--accent-color, #d35400);
   }
 
   .comments-panel {
@@ -575,5 +769,12 @@ const processedPosts = allPosts.map(post => {
       width: 100%;
       padding: 0.6rem;
     }
+  }
+
+  .loading-comments {
+    text-align: center;
+    padding: 1rem;
+    color: var(--text-secondary);
+    font-style: italic;
   }
 </style> 

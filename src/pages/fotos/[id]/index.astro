@@ -1,0 +1,368 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import { getPhotoById, photos } from '../../../data/photos';
+import ExpandableComments from '../../../components/ExpandableComments.jsx';
+import OptimizedImage from '../../../components/OptimizedImage.jsx';
+
+export async function getStaticPaths() {
+  return photos.map(photo => ({
+    params: { id: photo.id.toString() },
+    props: { photo }
+  }));
+}
+
+const { photo } = Astro.props;
+const { id, title, description, url, date, location, category } = photo;
+
+// Encontrar fotos anterior y siguiente
+const currentIndex = photos.findIndex(p => p.id === id);
+const prevPhoto = currentIndex > 0 ? photos[currentIndex - 1] : null;
+const nextPhoto = currentIndex < photos.length - 1 ? photos[currentIndex + 1] : null;
+
+// Formato de fecha
+const formattedDate = new Date(date).toLocaleDateString('es-ES', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric'
+});
+---
+
+<BaseLayout title={title} description={description} permalink={`/fotos/${id}`} current="fotos">
+  <div class="photo-detail-container" transition:animate="fade">
+    <div class="photo-navigation">
+      <a href="/fotos" class="back-to-gallery" data-astro-prefetch>
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+        Volver a la galería
+      </a>
+    </div>
+    
+    <div class="photo-detail">
+      <div class="photo-container">
+        <OptimizedImage
+          src={url}
+          alt={title}
+          className="photo-full"
+          transitionName={`photo-${id}`}
+          loadingMode="eager"
+          client:load
+        />
+      </div>
+      
+      <div class="photo-info" transition:animate="slide">
+        <h1 transition:name={`photo-title-${id}`}>{title}</h1>
+        
+        <div class="photo-metadata">
+          <span class="photo-date">{formattedDate}</span>
+          {location && 
+            <span class="photo-location" transition:name={`photo-location-${id}`}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                <circle cx="12" cy="10" r="3"></circle>
+              </svg>
+              {location}
+            </span>
+          }
+          <span class="photo-category">{category}</span>
+        </div>
+        
+        <p class="photo-description">{description}</p>
+        
+        <div class="photo-navigation-buttons">
+          {prevPhoto && (
+            <a href={`/fotos/${prevPhoto.id}`} class="nav-button prev" data-astro-prefetch data-direction="prev">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"></polyline>
+              </svg>
+              <span>Anterior</span>
+            </a>
+          )}
+          
+          {nextPhoto && (
+            <a href={`/fotos/${nextPhoto.id}`} class="nav-button next" data-astro-prefetch data-direction="next">
+              <span>Siguiente</span>
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </a>
+          )}
+        </div>
+      </div>
+    </div>
+    
+    <div class="comments-section" transition:animate="fade">
+      <h2>Comentarios</h2>
+      <ExpandableComments pagePath="fotos" resourceId={id.toString()} resourceType="photo" client:load />
+    </div>
+  </div>
+</BaseLayout>
+
+<style>
+  .photo-detail-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1rem;
+  }
+  
+  .photo-navigation {
+    margin: 1rem 0 2rem;
+  }
+  
+  .back-to-gallery {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-main, #333);
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s ease;
+    padding: 0.5rem 0.75rem;
+    border-radius: 20px;
+    background: rgba(230, 126, 34, 0.1);
+  }
+  
+  .back-to-gallery:hover {
+    color: var(--primary-color, #e67e22);
+    background: rgba(230, 126, 34, 0.2);
+  }
+  
+  .photo-detail {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 2rem;
+    margin-bottom: 2rem;
+  }
+  
+  .photo-container {
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+    background: #000;
+    height: fit-content;
+  }
+  
+  .photo-full {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+  
+  .optimized-image-container.photo-full {
+    height: auto !important;
+    min-height: 60vh;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 10px;
+  }
+  
+  .photo-info {
+    padding: 1rem;
+    background: rgba(254, 247, 230, 0.3);
+    border-radius: 10px;
+    border: 1px solid rgba(230, 126, 34, 0.2);
+    box-shadow: 0 4px 20px rgba(139, 69, 19, 0.08);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  
+  .photo-info h1 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    font-size: 2rem;
+    color: var(--text-main, #333);
+    border-bottom: 2px solid rgba(230, 126, 34, 0.3);
+    padding-bottom: 0.75rem;
+  }
+  
+  .photo-metadata {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    font-size: 0.9rem;
+    color: var(--text-secondary, #666);
+  }
+  
+  .photo-location {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+  
+  .photo-date, .photo-category {
+    padding: 0.25rem 0.5rem;
+    background: rgba(230, 126, 34, 0.1);
+    border-radius: 20px;
+    font-weight: 500;
+  }
+  
+  .photo-description {
+    font-size: 1.1rem;
+    line-height: 1.6;
+    margin-bottom: 2rem;
+    color: var(--text-main, #333);
+  }
+  
+  .photo-navigation-buttons {
+    display: flex;
+    justify-content: space-between;
+    margin-top: auto;
+  }
+  
+  .nav-button {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    background: var(--primary-color, #e67e22);
+    color: white;
+    text-decoration: none;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    font-weight: 500;
+  }
+  
+  .nav-button:hover {
+    background: var(--primary-color-dark, #d35400);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  }
+  
+  .nav-button.next {
+    margin-left: auto;
+  }
+  
+  .comments-section {
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid rgba(230, 126, 34, 0.3);
+  }
+  
+  .comments-section h2 {
+    margin-bottom: 1.5rem;
+    font-size: 1.75rem;
+    color: var(--text-main, #333);
+    text-align: center;
+  }
+  
+  /* Responsive */
+  @media (max-width: 900px) {
+    .photo-detail {
+      grid-template-columns: 1fr;
+    }
+    
+    .photo-container {
+      max-height: 70vh;
+    }
+    
+    .photo-full {
+      max-height: 70vh;
+      width: 100%;
+      object-fit: contain;
+    }
+  }
+  
+  @media (max-width: 600px) {
+    .photo-navigation-buttons {
+      flex-direction: column;
+      gap: 1rem;
+    }
+    
+    .nav-button {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+  
+  /* Dark mode */
+  @media (prefers-color-scheme: dark) {
+    .photo-info {
+      background: rgba(0, 0, 0, 0.3);
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    .back-to-gallery {
+      background: rgba(255, 255, 255, 0.1);
+    }
+    
+    .back-to-gallery:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+    
+    .photo-date, .photo-category {
+      background: rgba(255, 255, 255, 0.1);
+    }
+    
+    .photo-container {
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+    }
+  }
+  
+  /* View transitions animations */
+  ::view-transition-old(photo-*) {
+    animation: 300ms cubic-bezier(0.4, 0, 0.2, 1) both fade-out;
+  }
+  
+  ::view-transition-new(photo-*) {
+    animation: 300ms cubic-bezier(0.4, 0, 0.2, 1) both fade-in;
+  }
+  
+  @keyframes fade-in {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  
+  @keyframes fade-out {
+    from { opacity: 1; transform: scale(1); }
+    to { opacity: 0; transform: scale(1.05); }
+  }
+</style>
+
+<script>
+  // Esta función se ejecutará cuando se cargue la página
+  document.addEventListener('astro:page-load', () => {
+    console.log('Página de detalle de foto cargada');
+    
+    // Si es una navegación desde la galería principal, reproducir animación de entrada
+    if (document.referrer.includes('/fotos') && !document.referrer.includes('/fotos/')) {
+      const photoElement = document.querySelector('.photo-full');
+      if (photoElement) {
+        photoElement.classList.add('animate-entry');
+        setTimeout(() => {
+          photoElement.classList.remove('animate-entry');
+        }, 500);
+      }
+    }
+  });
+</script>
+
+<style is:global>
+  /* Animación de entrada personalizada */
+  .animate-entry {
+    animation: photo-entry 0.5s cubic-bezier(0.2, 0, 0.2, 1);
+  }
+  
+  @keyframes photo-entry {
+    from { 
+      opacity: 0; 
+      transform: scale(0.9); 
+    }
+    to { 
+      opacity: 1; 
+      transform: scale(1); 
+    }
+  }
+  
+  /* View transition overrides */
+  html::view-transition-group(*) {
+    animation-duration: 0.5s;
+  }
+  
+  html::view-transition-old(*) {
+    animation: 0.5s cubic-bezier(0.4, 0, 0.2, 1) both fade-out;
+  }
+  
+  html::view-transition-new(*) {
+    animation: 0.5s cubic-bezier(0.4, 0, 0.2, 1) both fade-in;
+  }
+</style>

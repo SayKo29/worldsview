@@ -1,24 +1,59 @@
 ---
 import BaseHead from "../components/BaseHead.astro";
-import Header from "../components/Header.astro";
-import Footer from "../components/Footer.astro";
+import Header from "../components/Header.jsx";
+import Footer from "../components/Footer.jsx";
 import { ViewTransitions } from "astro:transitions";
+import ClientRouter from "../components/ClientRouter.astro";
 
 const { title, description, permalink, current } = Astro.props;
 ---
 
-<html lang="es">
+<html lang="es" class="no-js">
   <head>
     <BaseHead {title} {description} {permalink} />
     <ViewTransitions />
+    <script is:inline>
+      // Script de inicialización del tema - se ejecuta antes del primer renderizado
+      (function() {
+        function getInitialTheme() {
+          // 1. Comprobar localStorage
+          const savedTheme = localStorage.getItem('theme');
+          if (savedTheme) {
+            return savedTheme;
+          }
+          
+          // 2. Comprobar preferencia del sistema
+          if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            return 'dark';
+          }
+          
+          // 3. Tema por defecto: light
+          return 'light';
+        }
+        
+        // Aplicar el tema inicial antes del primer render para evitar parpadeos
+        const theme = getInitialTheme();
+        document.documentElement.classList.remove('no-js');
+        
+        if (theme === 'dark') {
+          document.documentElement.classList.add('theme-dark');
+        } else {
+          document.documentElement.classList.remove('theme-dark');
+        }
+        
+        // Marcar que se ha inicializado el tema
+        window.themeInitialized = true;
+      })();
+    </script>
   </head>
 
   <body>
-    <Header {current} />
+    <Header current={current} />
     <main>
       <slot />
     </main>
     <Footer />
+    <ClientRouter />
   </body>
 </html>
 
@@ -27,11 +62,91 @@ const { title, description, permalink, current } = Astro.props;
     padding: 2rem 0;
     min-height: calc(100vh - 200px);
   }
+  
+  @media (max-width: 480px) {
+    main {
+      padding: 1rem 0;
+      min-height: calc(100vh - 180px);
+    }
+  }
 </style>
 
 <script>
   // Este script se ejecutará en cada navegación
   document.addEventListener('astro:page-load', () => {
     console.log('Página cargada con View Transitions');
+    
+    // Añadir clase para habilitar las animaciones después de la carga
+    document.documentElement.classList.add('view-transition-ready');
+    
+    // Re-aplicar el tema actual después de cada navegación
+    function restoreTheme() {
+      // Si hay un tema guardado en localStorage, asegurarse de que esté aplicado
+      try {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+          if (savedTheme === 'dark') {
+            document.documentElement.classList.add('theme-dark');
+          } else {
+            document.documentElement.classList.remove('theme-dark');
+          }
+          console.log('Tema restaurado después de navegación:', savedTheme);
+          
+          // Notificar a los componentes del tema actual
+          document.dispatchEvent(
+            new CustomEvent('themeChange', { detail: { theme: savedTheme } })
+          );
+        }
+      } catch (e) {
+        console.error('Error al restaurar tema:', e);
+      }
+    }
+    
+    // Restaurar tema después de cada navegación
+    restoreTheme();
+  });
+  
+  // Este script se ejecutará durante las transiciones de página
+  document.addEventListener('astro:after-swap', () => {
+    console.log('Contenido actualizado después de la transición');
+  });
+  
+  // Script para manejar el final de las transiciones
+  document.addEventListener('astro:after-transition', () => {
+    console.log('Transición completada');
+  });
+  
+  // Escuchar cambios de tema para sincronizar el estado global
+  document.addEventListener('themeChange', (event) => {
+    const theme = event.detail?.theme;
+    if (theme) {
+      console.log('Evento de cambio de tema detectado:', theme);
+    }
   });
 </script>
+
+<style is:global>
+  /* Configuración global para View Transitions */
+  html.view-transition-ready * {
+    view-transition-name: auto;
+  }
+  
+  /* Animaciones principales */
+  ::view-transition-old(root) {
+    animation: 0.5s cubic-bezier(0.4, 0, 0.2, 1) both fade-out;
+  }
+  
+  ::view-transition-new(root) {
+    animation: 0.5s cubic-bezier(0.4, 0, 0.2, 1) both fade-in;
+  }
+  
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  
+  @keyframes fade-out {
+    from { opacity: 1; transform: translateY(0); }
+    to { opacity: 0; transform: translateY(-20px); }
+  }
+</style>

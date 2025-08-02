@@ -1,5 +1,5 @@
 import { defineConfig } from 'astro/config'
-import svelte from '@astrojs/svelte'
+import react from '@astrojs/react'
 import mdx from '@astrojs/mdx'
 import remarkGfm from 'remark-gfm'
 import remarkSmartypants from 'remark-smartypants'
@@ -10,16 +10,6 @@ export default defineConfig({
   site: 'https://worldsvieew.com',
   base: '/',
   output: 'static',
-  vite: {
-    ssr: {
-      noExternal: ['svelte']
-    },
-    build: {
-      rollupOptions: {
-        external: ['svelte']
-      }
-    }
-  },
   markdown: {
     shikiConfig: {
       theme: 'nord',
@@ -34,5 +24,9 @@ export default defineConfig({
       ],
     ],
   },
-  integrations: [mdx(), svelte()],
+  integrations: [mdx(), react()],
+  // Configurar router para View Transitions
+  prefetch: {
+    defaultStrategy: "viewport",
+  }
 })
