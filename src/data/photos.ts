@@ -27,7 +27,7 @@ export const photos: Photo[] = [
     description: 
     date: '2025-07-14',
     category: 'naturaleza',
-    location: 'Centro Urbano',
+    location: 'Un lugar mágico',
     url: '/assets/blog-photos/DSC07236-01.jpeg'
   },
   {
