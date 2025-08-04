@@ -23,8 +23,8 @@ export const photos: Photo[] = [
   {
     id: 2,
     filename: 'DSC07236-01.jpeg',
-    title: 'Geometría Urbana',
-    description: 'Líneas y formas se entrelazan en la arquitectura moderna, creando patrones que cuentan historias de la ciudad.',
+    title: 'Perspectiva',
+    description: 
     date: '2025-07-14',
     category: 'naturaleza',
     location: 'Centro Urbano',
