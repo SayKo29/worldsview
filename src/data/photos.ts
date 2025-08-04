@@ -15,7 +15,7 @@ export const photos: Photo[] = [
     filename: 'DSC07238-01.jpeg',
     title: 'Monochamus',
     description: 'Fíjate en los detalles y tu perspectiva cambiará para siempre.',
-    date: '2025-07-14',
+    date: '2025-08-04',
     category: 'naturaleza',
     location: 'Un lugar mágico',
     url: '/assets/blog-photos/DSC07238-01.jpeg'
@@ -25,7 +25,7 @@ export const photos: Photo[] = [
     filename: 'DSC07236-01.jpeg',
     title: 'Perspectiva',
     description: 
-    date: '2025-07-14',
+    date: '2025-08-04',
     category: 'naturaleza',
     location: 'Un lugar mágico',
     url: '/assets/blog-photos/DSC07236-01.jpeg'
