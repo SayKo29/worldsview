@@ -13,8 +13,8 @@ export const photos: Photo[] = [
   {
     id: 1,
     filename: 'DSC07238-01.jpeg',
-    title: 'Reflejos del Amanecer',
-    description: 'La luz matutina baila sobre las aguas tranquilas, creando un espejo natural que refleja la serenidad del momento.',
+    title: 'Monochamus',
+    description: 'Fíjate en los detalles y tu perspectiva cambiará para siempre.',
     date: '2025-07-14',
     category: 'naturaleza',
     location: 'Lago de la Serenidad',
